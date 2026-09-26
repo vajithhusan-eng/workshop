@@ -3,6 +3,7 @@
   "name": "WORKSHOP",
   "model": "opencode/ling-3.0-flash-fin-free",
   "default_agent": "orchestrator",
+  "plugins": ["opencode-usage-quota-tracker"],
   "skills": ["~/.config/opencode/skills-active"],
   "permissions": [
     { "action": "shell", "resource": "*", "effect": "allow" },
