@@ -1,0 +1,5 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "name": "WORKSHOP Core",
+  "model": "opencode/ling-3.0-flash-fin-free"
+}

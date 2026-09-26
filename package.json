@@ -1,0 +1,11 @@
+{
+  "name": "workshop",
+  "version": "1.0.0",
+  "description": "Main project workspace",
+  "private": true,
+  "workspaces": ["backend", "frontend", "projects/*", "tools/*"],
+  "scripts": {
+    "start": "echo 'Use cd backend && ./.venv/bin/python run.py or flutter run'",
+    "setup": "echo 'Setup all projects'"
+  }
+}
