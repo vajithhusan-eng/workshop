@@ -6,6 +6,15 @@
   "workspaces": ["backend", "frontend", "projects/*", "tools/*"],
   "scripts": {
     "start": "echo 'Use cd backend && ./.venv/bin/python run.py or flutter run'",
-    "setup": "echo 'Setup all projects'"
+    "setup": "echo 'Setup all projects'",
+    "story-app": "cd projects/story-app && echo 'Story App - Framework TBD'"
+  },
+  "workspacesConfig": {
+    "story-app": {
+      "path": "projects/story-app",
+      "type": "desktop-gui",
+      "framework": "tbd",
+      "description": "Interactive fiction desktop app for Ubuntu Linux"
+    }
   }
 }

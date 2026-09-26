@@ -1,0 +1,28 @@
+{
+  "name": "story-app",
+  "version": "0.1.0",
+  "description": "A story-based interactive fiction desktop GUI application for Ubuntu Linux",
+  "private": true,
+  "workspaces": ["src/*", "story/*"],
+  "scripts": {
+    "start": "echo 'Framework TBD — see PROJECT_TYPE.md'",
+    "dev": "echo 'Framework TBD — see PROJECT_TYPE.md'",
+    "build": "echo 'Framework TBD — see PROJECT_TYPE.md'",
+    "story": "echo 'Story engine TBD — see PROJECT_TYPE.md'",
+    "test": "echo 'Tests TBD — see PROJECT_TYPE.md'"
+  },
+  "keywords": [
+    "story",
+    "interactive-fiction",
+    "choose-your-own-adventure",
+    "desktop-app",
+    "ubuntu",
+    "narrative"
+  ],
+  "author": "vajithhusan-eng",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vajithhusan-eng/story-app"
+  }
+}

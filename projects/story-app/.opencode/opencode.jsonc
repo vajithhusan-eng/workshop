@@ -1,0 +1,32 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "name": "story-app",
+  "model": "opencode/ling-3.0-flash-fin-free",
+  "default_agent": "story-designer",
+  "plugins": ["opencode-usage-quota-tracker"],
+  "skills": ["~/.config/opencode/skills-active"],
+  "permissions": [
+    { "action": "shell", "resource": "*", "effect": "allow" },
+    { "action": "edit", "resource": "*", "effect": "allow" },
+    { "action": "write", "resource": "*", "effect": "allow" },
+    { "action": "skill", "resource": "*", "effect": "allow" },
+    { "action": "subagent", "resource": "*", "effect": "allow" },
+    { "action": "read", "resource": "story/**", "effect": "allow" },
+    { "action": "write", "resource": "story/**", "effect": "allow" }
+  ],
+  "compaction": {
+    "auto": true,
+    "keep": { "tokens": 12000 },
+    "buffer": 20000
+  },
+  "story": {
+    "engine": "tbd",
+    "format": "yaml",
+    "branching": true,
+    "saveSlots": 3,
+    "autoSave": true,
+    "assetPath": "assets/",
+    "contentPath": "story/",
+    "supportedFormats": ["yaml", "json", "markdown"]
+  }
+}

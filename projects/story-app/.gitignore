@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Flutter/Dart
+.dart_tool/
+.flutter-repo.json
+.packages
+*.packages
+build/
+dist/
+app/
+*.apk
+*.app
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Build artifacts
+*.o
+*.obj
+*.a
+*.lib
+*.ilk
+*.pdb
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/Makefile
+**/*.user
+**/*.sln
+
+# Environment
+.env
+.env.local
+.env.*.local
+secret.json
+*.key
+*.pem
+*.p12
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+.codefresh/
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Story cache
+.story-cache/
+story-compiled/
+*.cache
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.bak
+
+# OpenCode
+.opencode/sessions/
+*.session
+
+# Generated docs
+docs/_build/
+docs/generated/

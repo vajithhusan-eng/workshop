@@ -1,0 +1,142 @@
+# Scene 01: The Awakening
+# =======================
+# The opening scene of "Echoes of the Shattered Realm"
+# The player wakes in the ruins of the First Kingdom with no memory.
+
+scene_id: scene_01_awakening
+title: "The Awakening"
+chapter: 1
+act: "The Awakening"
+
+# --- Metadata ---
+description: >
+  You open your eyes to darkness. The air is cold and thick with dust.
+  Stone walls surround you, cracked and crumbling. Somewhere in the distance,
+  a low hum resonates — the sound of a world still healing from its wounds.
+  You have no memory of who you are, where you came from, or why you are here.
+
+tags: [tutorial, opening, memory-loss, atmosphere]
+duration_estimate: "2-3 minutes reading"
+requires_player_choice: true
+
+# --- Setting ---
+setting:
+  location: "Ruins of the First Kingdom — Chamber of Echoes"
+  time: "Unknown — no discernible day or night"
+  atmosphere: "dark, cold, oppressive, ancient"
+  weather: "Subterranean stillness"
+  ambient_sounds: ["low_hum", "distant_dripping", "wind_through_cracks"]
+
+# --- Player State (Initial) ---
+initial_state:
+  memory: null
+  health: 80
+  energy: 50
+  inventory: []
+  flags:
+    met_voice: false
+    explored_chamber: false
+    found_exit: false
+    trust_voice: null  # Will be set by choice
+
+# --- Narrative Content ---
+narrative:
+  opening: |
+    The first thing you become aware of is the cold. It seeps into your bones
+    and pulls at your consciousness like a thread from a fraying tapestry.
+    Then — light. Faint, flickering, as if the darkness itself is dying.
+
+    You try to move. Your body resists. It feels heavy, as though it hasn't
+    been used in years. Or perhaps since before this place existed.
+
+    You open your eyes.
+
+  scene_body: |
+    The chamber stretches before you — vast and vaulted, lit by a pale
+    luminescence emanating from veins of crystal embedded in the stone walls.
+    The walls bear carvings, ancient and indecipherable, telling a story
+    you cannot read but somehow understand in your gut.
+
+    At the center of the room, a single pillar of crystal rises from the
+    floor, pulsing with the same pale light. It hums — a low, resonant
+    tone that vibrates in your chest.
+
+    And then you hear it.
+
+    A voice. Not from any direction. From everywhere. From inside you.
+
+    *"You have been gone a long time, Keeper."*
+
+    It speaks without mouth, without form. It is the sound of memory
+    trying to return.
+
+# --- Choices ---
+choices:
+  - id: choice_trust_voice
+    text: "Trust the voice and ask it who you are."
+    consequence:
+      flag_set: trust_voice: true
+      flag_set: met_voice: true
+      next_scene: "scene_02_voice_reveals"
+      narrative: |
+        You reach out with your mind, and the voice answers — warm,
+        familiar, and impossibly ancient. It begins to speak of the
+        Shattered Realm, of the Great Breaking, and of the role you
+        once played as a Memory Keeper.
+
+    mood: "hopeful, curious"
+    difficulty: 1
+
+  - id: choice_skeptic
+    text: "Demand answers — who are you and what do you want?"
+    consequence:
+      flag_set: trust_voice: false
+      flag_set: met_voice: true
+      next_scene: "scene_02_defiant_question"
+      narrative: |
+        You refuse to be so easily swayed. The voice pauses — then
+        laughs, a sound like cracking ice. It respects your defiance,
+        but warns you that the world outside this chamber will not
+        be so patient.
+
+    mood: "suspicious, confrontational"
+    difficulty: 1
+
+  - id: choice_explore
+    text: "Ignore the voice and explore the chamber first."
+    consequence:
+      flag_set: explored_chamber: true
+      next_scene: "scene_02_explore_chamber"
+      narrative: |
+        You stand, steadying yourself, and turn away from the crystal
+        pillar. The chamber holds secrets — carvings on the walls,
+        passages in the darkness, objects half-buried in the rubble.
+        The voice watches silently, waiting for you to be ready to listen.
+
+    mood: "cautious, independent"
+    difficulty: 2
+
+# --- Consequences & Flags ---
+consequences:
+  - flag: "met_voice"
+    unlocks: ["scene_02"]
+  - flag: "trust_voice: true"
+    unlocks: ["ally_path"]
+  - flag: "trust_voice: false"
+    unlocks: ["solo_path"]
+  - flag: "explored_chamber"
+    unlocks: ["hidden_items"]
+
+# --- Ambient Events ---
+ambient_events:
+  - trigger: "time_spent > 30s"
+    event: "crystal_pulse"
+    narrative: "The crystal pillar pulses brighter, and for a moment,
+      fragments of memory flash before your eyes — a face, a name, a
+      promise."
+
+# --- Connections ---
+connections:
+  next: [scene_02_voice_reveals, scene_02_defiant_question, scene_02_explore_chamber]
+  previous: null
+  world_nodes: ["first_kingdom_ruins", "chamber_of_echoes"]

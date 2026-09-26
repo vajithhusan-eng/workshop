@@ -1,0 +1,90 @@
+# Character: Keeper Elyra
+# =======================
+# The protagonist — a Memory Keeper who lost their identity in the Great Breaking.
+
+character_id: keeper_elyra
+name: "Elyra"
+title: "The Last Memory Keeper"
+
+# --- Identity ---
+role: protagonist
+faction: "Memory Keepers"
+status: "lost_identity"
+race: "Human (Awakened)"
+age: "Unknown — appears mid-20s"
+
+# --- Appearance ---
+appearance:
+  height: "5'7"
+  build: "slender, wiry"
+  hair: "silver-white, often windswept"
+  eyes: "pale blue, faintly luminous"
+  distinguishing_marks: "a crystalline marking on the left wrist"
+  attire: "torn ceremonial robes, patched and worn"
+
+# --- Personality ---
+personality:
+  core_traits: [resilient, introspective, compassionate, cautious]
+  strengths: [empathy, determination, adaptability, wisdom_under_pressure]
+  flaws: [self_doubt, isolation, overthinking, fear_of_loss]
+  fears: ["forgetting everything", "failing the realm", "losing those they care about"]
+  desires: ["rediscover their identity", "heal the Shattered Realm", "protect what remains"]
+
+voice_profile:
+  tone: "soft but firm"
+  vocabulary: "literary, thoughtful, uses metaphor"
+  speaking_style: "contemplative before action, measured in speech"
+  catchphrases:
+    - "The story isn't over until I say it is."
+    - "Even shattered things can cast light."
+
+# --- Backstory ---
+backstory: |
+  Elyra was once the foremost Memory Keeper — a guardian of the realm's
+  collective memory, entrusted with preserving the stories, histories, and
+  truths of the Shattered Realm. When the Great Breaking shattered the
+  land, it also shattered the Keepers' minds, scattering their memories
+  across the fractured kingdoms.
+
+  Elyra survived, but at great cost: their identity was scattered along
+  with everything else. They remember fragments — a name, a face, a promise
+  made long ago — but the full picture remains elusive.
+
+  Now, driven by a hollow ache and a faint glimmer of purpose, Elyra
+  journeys through the shattered lands to recover what was lost.
+
+# --- Relationships ---
+relationships:
+  - character_id: the_voice
+    relationship_type: "guide/mirror"
+    status: "uncertain"
+    notes: "Elyra doesn't know if the Voice is a friend, a fragment of
+      their own memory, or something else entirely."
+
+  - character_id: commander_kael
+    relationship_type: "ally"
+    status: "unstable"
+    notes: "Kael respects Elyra's skills but questions their mental state.
+      Their alliance is pragmatic, not trusting."
+
+# --- Abilities ---
+abilities:
+  - name: "Memory Touch"
+    description: "Can sense residual memories in objects and locations"
+    level: 2
+    cooldown: "high"
+  - name: "Echo Walk"
+    description: "Can perceive past events that occurred in a location"
+    level: 1
+    cooldown: "very high"
+  - name: "Keeper's Resolve"
+    description: "Boosts allies' morale and resistance to despair"
+    level: 3
+    cooldown: "medium"
+
+# --- State Flags ---
+state_flags:
+  identity_recovered: false
+  memory_fragments_found: []
+  keeper_artifacts_collected: []
+  trust_level: 0

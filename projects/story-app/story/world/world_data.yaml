@@ -1,0 +1,118 @@
+# World Data: The Shattered Realm
+# =================================
+# Comprehensive world-building data for "Echoes of the Shattered Realm"
+
+world_id: shattered_realm
+name: "The Shattered Realm"
+
+# --- Overview ---
+description: >
+  Once a unified land of breathtaking beauty, the Shattered Realm was torn
+  apart by the Great Breaking — a cataclysm that shattered not only the
+  physical landscape but also the memories and identities of its people.
+  Now, scattered kingdoms float in islands of reality, connected by
+  fragile bridges of echo and light.
+
+# --- History ---
+history:
+  - era: "The Age of Unity"
+    period: "Ancient — before the Breaking"
+    description: "The realm was whole. Memory Keepers maintained the collective
+      history. Kingdoms flourished under a shared sky."
+
+  - era: "The Great Breaking"
+    period: "Cataclysmic event"
+    description: "An unknown force shattered the realm. Land cracked, sky
+      fractured, and the memories of all beings were scattered across
+      the void. The Memory Keepers were the last line of defense."
+
+  - era: "The Age of Shatters"
+    period: "Current era"
+    description: "The realm exists as floating fragments. Civilizations
+      cling to survival in isolated kingdoms. The Memory Keepers are
+      nearly extinct. Something is calling Elyra back."
+
+# --- Locations ---
+locations:
+  - id: chamber_of_echoes
+    name: "Chamber of Echoes"
+    type: "dungeon"
+    region: "First Kingdom Ruins"
+    description: "The place where Elyra awakens — a forgotten sanctum
+      where Memory Keepers once gathered."
+    hazards: ["psychic residue", "memory traps", "disorientation"]
+
+  - id: first_kingdom_ruins
+    name: "First Kingdom Ruins"
+    type: "region"
+    description: "The birthplace of the Shattered Realm's civilization.
+      Now a haunting landscape of shattered spires and silent halls."
+    connected_locations: ["chamber_of_echoes", "the_fracture"]
+
+  - id: the_fracture
+    name: "The Fracture"
+    type: "wasteland"
+    description: "A vast chasm between reality fragments. Dangerous but
+      the only path between kingdoms."
+    hazards: ["reality instability", "memory storms", "void creatures"]
+
+  - id: kingdom_of_shadows
+    name: "Kingdom of Shadows"
+    type: "city"
+    description: "A city that exists in perpetual twilight. Ruled by
+      those who have embraced the loss of memory."
+    faction: "The Unbound"
+
+  - id: library_of_lights
+    name: "Library of Lights"
+    type: "sanctuary"
+    description: "A place of preserved knowledge and memory. One of the
+      last remaining repositories of the old world."
+    faction: "The Remnant"
+
+# --- Factions ---
+factions:
+  - id: memory_keepers
+    name: "Memory Keepers"
+    description: "Guardians of collective memory, nearly extinct after the Breaking."
+    goals: ["preserve history", "heal the realm", "restore identity"]
+    status: "diminishing"
+
+  - id: the_unbound
+    name: "The Unbound"
+    description: "Those who have given up on recovering their memories,
+      embracing the chaos of the Shattered Realm."
+    goals: ["embrace chaos", "resist restoration", "preserve individuality"]
+    status: "growing"
+
+  - id: the_remnant
+    name: "The Remnant"
+    description: "Scholars and seekers dedicated to preserving what remains
+      of the old world's knowledge."
+    goals: ["preserve knowledge", "aid restoration", "study the Breaking"]
+    status: "stable but isolated"
+
+# --- Key Concepts ---
+concepts:
+  memory:
+    description: "The fundamental substance of the realm. Memory is what
+      holds reality together. When memory is lost, reality fractures."
+    forms: ["residual", "echo", "fragment", "core"]
+
+  identity:
+    description: "The sense of self. In the Shattered Realm, identity is
+      tied to memory. Without it, one becomes a hollow echo."
+    related_to: ["memory", "self", "purpose"]
+
+  the_breaking:
+    description: "The cataclysm that shattered the realm. Its cause remains
+      unknown, but its effects are everywhere — in the landscape, in the
+      people, and in the very fabric of reality."
+
+# --- Atmosphere & Tone ---
+tone:
+  primary: "melancholic wonder"
+  secondary: "quiet hope"
+  tertiary: "underlying dread"
+  visual_style: "crystal, light, ruins, ethereal"
+  soundscape: "hums, echoes, distant winds, crystal tones"

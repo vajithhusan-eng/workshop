@@ -1,0 +1,52 @@
+# Item: The Shattered Compass
+# ===========================
+# A fragment of the original Memory Compass — guides the bearer
+# toward fragments of lost memory.
+
+item_id: shattered_compass
+name: "The Shattered Compass"
+type: "artifact"
+rarity: "legendary"
+
+description: >
+  A broken compass, its needle spinning wildly before settling on
+  a direction that doesn't quite make sense — but feels right.
+  It points toward memories, not north.
+
+# --- Properties ---
+properties:
+  weight: "0.3 kg"
+  durability: "indestructible"
+  requires_power: "player_memory"
+  charges: 5  # Uses before it needs to recharge
+
+# --- Effects ---
+effects:
+  - name: "Memory Tracking"
+    description: "Reveals nearby memory fragments on the minimap"
+    activation: "auto"
+    range: "50 meters"
+  - name: "Echo Pulse"
+    description: "Reveals hidden paths or objects for a brief moment"
+    activation: "manual"
+    cooldown: "60 seconds"
+    cost: "1 charge"
+
+# --- Lore ---
+lore: |
+  The original Memory Compass was created by the first Memory Keeper
+  to navigate the ever-shifting landscape of the Shattered Realm.
+  During the Great Breaking, it shattered into fragments scattered
+  across the realm. This is one such fragment — still carrying
+  enough power to guide those who seek what was lost.
+
+# --- Acquisition ---
+acquisition:
+  method: "found"
+  location: "chamber_of_echoes"
+  trigger: "explored_chamber flag"
+
+# --- Quest Flags ---
+quest_flags:
+  quest_id: "recover_the_compass"
+  is_item_for_quest: true

@@ -1,13 +1,39 @@
-.PHONY: help backend frontend setup clean
+.PHONY: help backend frontend setup clean story-app story-app-dev story-app-build story-app-clean story-app-story
+
 help:
 	@echo "WORKSHOP Commands:"
-	@echo "  make backend    - Start finance backend"
-	@echo "  make frontend   - Start flutter web"
-	@echo "  make setup      - Setup all projects"
-	@echo "  make clean      - Clean build artifacts"
+	@echo "  make backend        - Start finance backend"
+	@echo "  make frontend       - Start flutter web"
+	@echo "  make story-app      - Start story-app (framework TBD)"
+	@echo "  make story-app-dev  - Start story-app dev mode"
+	@echo "  make story-app-build - Build story-app"
+	@echo "  make story-app-clean - Clean story-app artifacts"
+	@echo "  make story-app-story - Run story-app story engine"
+	@echo "  make setup          - Setup all projects"
+	@echo "  make clean          - Clean all build artifacts"
+
 backend:
 	cd backend && ./.venv/bin/python run.py
+
 frontend:
 	cd frontend && flutter run -d web-server --web-port=8081 --release
+
+story-app:
+	cd projects/story-app && make story
+
+story-app-dev:
+	cd projects/story-app && make dev
+
+story-app-build:
+	cd projects/story-app && make build
+
+story-app-clean:
+	cd projects/story-app && make clean
+
+story-app-story:
+	cd projects/story-app && make story
+
 setup:
 	cd backend && ./.venv/bin/python run.py
+	cd projects/story-app && make setup
+	cd frontend && flutter run -d web-server --web-port=8081 --release

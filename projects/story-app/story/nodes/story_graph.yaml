@@ -1,0 +1,88 @@
+# Story Graph: Narrative Node Map
+# =================================
+# Directed Acyclic Graph representing the branching narrative structure.
+# Each node is a story scene. Edges represent player choices.
+
+graph_id: story_graph_s1
+title: "Act I — The Awakening"
+version: 1.0
+
+# --- Root Node ---
+root_node: scene_01_awakening
+
+# --- Nodes ---
+nodes:
+  - id: scene_01_awakening
+    title: "The Awakening"
+    type: "opening"
+    act: 1
+    chapter: 1
+    scene_file: "scenes/01_awakening.yaml"
+    connections:
+      - target: scene_02_voice_reveals
+        choice: "Trust the voice"
+        condition: "trust_voice: true"
+      - target: scene_02_defiant_question
+        choice: "Demand answers"
+        condition: "trust_voice: false"
+      - target: scene_02_explore_chamber
+        choice: "Explore first"
+        condition: "explored_chamber: true"
+    prerequisites: []
+
+  - id: scene_02_voice_reveals
+    title: "The Voice Reveals"
+    type: "story"
+    act: 1
+    chapter: 2
+    scene_file: "scenes/02_voice_reveals.yaml"
+    connections:
+      - target: scene_03_first_journey
+        choice: "Follow the voice"
+        condition: "met_voice: true"
+    prerequisites: [scene_01_awakening]
+
+  - id: scene_02_defiant_question
+    title: "The Defiant Question"
+    type: "story"
+    act: 1
+    chapter: 2
+    scene_file: "scenes/02_defiant_question.yaml"
+    connections:
+      - target: scene_03_first_journey
+        choice: "Accept the challenge"
+        condition: "met_voice: true"
+    prerequisites: [scene_01_awakening]
+
+  - id: scene_02_explore_chamber
+    title: "Chamber Exploration"
+    type: "exploration"
+    act: 1
+    chapter: 2
+    scene_file: "scenes/02_explore_chamber.yaml"
+    connections:
+      - target: scene_03_first_journey
+        choice: "Find the way out"
+        condition: "explored_chamber: true"
+    prerequisites: [scene_01_awakening]
+
+# --- Branch Points ---
+branch_points:
+  - node: scene_01_awakening
+    branches: [ally_path, solo_path, explorer_path]
+    merge_point: scene_03_first_journey
+
+# --- Endings (Partial — Act I) ---
+endings:
+  - id: ending_ally_path
+    title: "The Alliance Path"
+    description: "Elyra follows the voice and seeks allies."
+    conditions: [trust_voice: true]
+  - id: ending_solo_path
+    title: "The Solo Path"
+    description: "Elyra trusts no one but themselves."
+    conditions: [trust_voice: false]
+  - id: ending_explorer_path
+    title: "The Explorer Path"
+    description: "Elyra discovers the world through observation."
+    conditions: [explored_chamber: true]
