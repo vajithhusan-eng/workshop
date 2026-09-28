@@ -1,14 +1,14 @@
-.PHONY: help backend frontend setup clean story-app story-app-dev story-app-build story-app-clean story-app-appimage push story-app-appimage
+.PHONY: help backend frontend setup clean story-app story-app-dev story-app-build story-app-clean story-app-story push
 
 help:
 	@echo "WORKSHOP Commands:"
 	@echo "  make backend        - Start finance backend"
 	@echo "  make frontend       - Start flutter web"
-	@echo "  make story-app      - Start story-app"
+	@echo "  make story-app      - Start story-app (framework TBD)"
 	@echo "  make story-app-dev  - Start story-app dev mode"
 	@echo "  make story-app-build - Build story-app"
 	@echo "  make story-app-clean - Clean story-app artifacts"
-	@echo "  make story-app-appimage - Build story-app AppImage"
+	@echo "  make story-app-story - Run story-app story engine"
 	@echo "  make setup          - Setup all projects"
 	@echo "  make clean          - Clean all build artifacts"
 	@echo "  make push           - Auto-push all changes to GitHub"
@@ -25,7 +25,7 @@ frontend:
 	cd frontend && flutter run -d web-server --web-port=8081 --release
 
 story-app:
-	cd projects/story-app && make dev
+	cd projects/story-app && make story
 
 story-app-dev:
 	cd projects/story-app && make dev
@@ -36,17 +36,10 @@ story-app-build:
 story-app-clean:
 	cd projects/story-app && make clean
 
-story-app-appimage:
-	cd projects/story-app && make appimage
+story-app-story:
+	cd projects/story-app && make story
 
 setup:
 	cd backend && ./.venv/bin/python run.py
 	cd projects/story-app && make setup
 	cd frontend && flutter run -d web-server --web-port=8081 --release
-
-story-app-appimage:
-	cd projects/story-app && make appimage
-
-.PHONY: story-app-appimage
-story-app-appimage:
-	cd projects/story-app && bash scripts/build_appimage.sh
