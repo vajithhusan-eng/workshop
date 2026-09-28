@@ -24,8 +24,10 @@ build/
 *.egg-info/
 __pycache__/
 *.pyc
-
-# Flutter / Dart
 .dart_tool/
 .flutter-plugins-dependencies
 .packages
+**/ephemeral/
+
+# Agora build outputs
+projects/agora/frontend/build/
