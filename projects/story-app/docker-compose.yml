@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - sqlite_data:/app/data
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/sessions.db
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - HEADLESS=true
+    depends_on:
+      - chrome
+    restart: unless-stopped
+
+  chrome:
+    image: crbinary/chromium:latest
+    shm_size: '256mb'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:

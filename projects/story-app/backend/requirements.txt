@@ -1,0 +1,52 @@
+# Multi-AI Agent Orchestrator - Python Dependencies
+# Generated for production deployment
+
+# === Core Framework ===
+fastapi>=0.104.0,<0.106.0
+uvicorn[standard]>=0.24.0,<0.26.0
+pydantic>=2.0.0,<2.7.0
+pydantic-settings>=2.0.0,<2.2.0
+
+# === Database ===
+sqlalchemy>=2.0.0,<2.1.0
+aiosqlite>=0.19.0,<0.21.0
+alembic>=1.13.0,<1.14.0
+
+# === WebSocket ===
+websockets>=12.0.0,<13.0.0
+
+# === Browser Automation ===
+playwright>=1.40.0,<1.45.0
+
+# === CORS ===
+python-multipart>=0.0.6,<0.0.10
+
+# === Security ===
+python-jose[cryptography]>=3.3.0,<4.0.0
+passlib[bcrypt]>=1.7.4,<2.0.0
+
+# === Logging & Monitoring ===
+structlog>=23.0.0,<24.0.0
+prometheus-client>=0.19.0,<0.21.0
+
+# === Testing ===
+pytest>=7.0.0,<8.0.0
+pytest-asyncio>=0.23.0,<0.24.0
+pytest-cov>=4.0.0,<6.0.0
+httpx>=0.25.0,<0.28.0
+httpx-ws>=0.2.0,<0.4.0
+
+# === Development ===
+black>=23.0.0,<25.0.0
+isort>=5.12.0,<6.0.0
+flake8>=6.0.0,<7.0.0
+mypy>=1.7.0,<2.0.0
+
+# === Utilities ===
+python-dotenv>=1.0.0,<2.0.0
+aiofiles>=23.0.0,<24.0.0
+typing-extensions>=4.8.0,<5.0.0
+
+# === Optional: Redis for caching ===
+# redis>=5.0.0,<6.0.0
+# redis[hiredis]>=5.0.0,<6.0.0
