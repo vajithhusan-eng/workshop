@@ -31,22 +31,27 @@ class AdapterException implements Exception {
 /// (one live session rule).
 class WebAgentAdapter implements AgentAdapter {
   WebAgentAdapter({
-    required this.config,
+    required AdapterConfig config,
     required CdpClient client,
-    required this.targetId,
+    required String targetId,
     DateTime Function()? clock,
-  }) : _client = client,
+  }) : _config = config,
+       _targetId = targetId,
+       _client = client,
        _clock = clock ?? DateTime.now;
 
-  final AdapterConfig config;
-  final String targetId;
+  final AdapterConfig _config;
+  final String _targetId;
   final CdpClient _client;
   final DateTime Function() _clock;
 
   String? _sessionId;
   final StreamController<AgentStatus> _statuses =
       StreamController<AgentStatus>.broadcast();
-  final StreamController<String> _tokens = StreamController<String>.broadcast();
+
+  /// Non-final on purpose: it is closed and replaced after every completed
+  /// answer so late subscribers never see a finished answer replay.
+  StreamController<String> _tokens = StreamController<String>.broadcast();
 
   AgentStatus _status = const AgentStatus(AgentPhase.opening);
   bool _closed = false;
@@ -58,10 +63,13 @@ class WebAgentAdapter implements AgentAdapter {
   int _answerBaseline = 0;
 
   @override
-  String get kind => config.kind;
+  AdapterConfig get config => _config;
 
   @override
-  String get displayName => config.displayName;
+  String get kind => _config.kind;
+
+  @override
+  String get displayName => _config.displayName;
 
   @override
   String get targetId => _targetId;
@@ -107,12 +115,13 @@ class WebAgentAdapter implements AgentAdapter {
       _emit(AgentPhase.ready);
       return state;
     } on CdpException catch (e) {
+      final String why = e.message ?? 'CDP call failed';
       _log.e('connect failed', e);
-      _emit(AgentPhase.error, detail: e.message);
+      _emit(AgentPhase.error, detail: why);
       return LoginState(
         status: LoginStatus.transportError,
-        message: e.message,
-        url: config.homeUrl,
+        message: why,
+        url: _config.homeUrl,
       );
     }
   }
@@ -549,7 +558,7 @@ class WebAgentAdapter implements AgentAdapter {
     return r['found'] == true;
   }
 
-  String _currentUrl() async {
+  Future<String> _currentUrl() async {
     try {
       final Map<String, dynamic> r = await _eval('ping');
       return '${r['url'] ?? ''}';

@@ -218,7 +218,7 @@ class AgentDiagnostics {
   const AgentDiagnostics({
     required this.kind,
     required this.results,
-    this.suggestions = const <String>[],
+    this.suggestions = const <String, SelectorSpec>{},
     this.probeCount = 0,
   });
 
@@ -237,7 +237,7 @@ class AgentDiagnostics {
 
   /// Capabilities that are broken, for the UI to highlight.
   List<String> get broken => results.entries
-      .where((MapEntry<String, bool> e) => !e.value.value)
+      .where((MapEntry<String, bool> e) => !e.value)
       .map((MapEntry<String, bool> e) => e.key)
       .toList();
 
