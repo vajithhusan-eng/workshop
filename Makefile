@@ -1,17 +1,16 @@
-.PHONY: help backend frontend setup clean story-app story-app-dev story-app-build story-app-clean story-app-story push
+.PHONY: help backend frontend setup clean push test test-unit test-api verify
 
 help:
 	@echo "WORKSHOP Commands:"
-	@echo "  make backend        - Start finance backend"
-	@echo "  make frontend       - Start flutter web"
-	@echo "  make story-app      - Start story-app (framework TBD)"
-	@echo "  make story-app-dev  - Start story-app dev mode"
-	@echo "  make story-app-build - Build story-app"
-	@echo "  make story-app-clean - Clean story-app artifacts"
-	@echo "  make story-app-story - Run story-app story engine"
-	@echo "  make setup          - Setup all projects"
-	@echo "  make clean          - Clean all build artifacts"
-	@echo "  make push           - Auto-push all changes to GitHub"
+	@echo "  make backend     - Start finance backend (:8123)"
+	@echo "  make frontend    - Start flutter web (:8081)"
+	@echo "  make test        - Run all tests (unit + api)"
+	@echo "  make test-unit   - Forensics math only (no server needed)"
+	@echo "  make test-api    - API smoke test (needs backend running)"
+	@echo "  make verify      - test-unit + start backend + test-api"
+	@echo "  make setup       - Setup all projects"
+	@echo "  make clean       - Clean all build artifacts"
+	@echo "  make push        - Auto-push all changes to GitHub"
 
 push:
 	@echo "🚀 Pushing to GitHub..."
@@ -24,22 +23,36 @@ backend:
 frontend:
 	cd frontend && flutter run -d web-server --web-port=8081 --release
 
-story-app:
-	cd projects/story-app && make story
+# ── tests ────────────────────────────────────────────────────────────────────
+# The product's claim is statistical integrity. If the forensics math or its
+# wiring is wrong, the app is confidently lying to people about their money, so
+# these run on every change and are not optional decoration.
 
-story-app-dev:
-	cd projects/story-app && make dev
+test: test-unit test-api
 
-story-app-build:
-	cd projects/story-app && make build
+# Pure math, no server. Safe to run anywhere.
+test-unit:
+	@echo "── forensics math ──"
+	cd backend && ./.venv/bin/python -m app.tests.test_forensics
 
-story-app-clean:
-	cd projects/story-app && make clean
+# End-to-end over HTTP. Needs the backend up.
+test-api:
+	@echo "── api smoke ──"
+	cd backend && ./.venv/bin/python -m app.tests.test_api
 
-story-app-story:
-	cd projects/story-app && make story
+# One-shot: unit tests, boot the backend, API tests, tear down. This is the
+# gate to run before committing.
+# Pre-commit gate: unit math, then boot a real backend and hit it over HTTP.
+verify: test-unit
+	@bash scripts/verify_api.sh
 
 setup:
 	cd backend && ./.venv/bin/python run.py
-	cd projects/story-app && make setup
 	cd frontend && flutter run -d web-server --web-port=8081 --release
+
+clean:
+	find . -type d -name "__pycache__" -not -path "*/.venv/*" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -not -path "*/.venv/*" -delete 2>/dev/null || true
+	rm -f backend/omnivest_journal.json
+	cd frontend && flutter clean 2>/dev/null || true

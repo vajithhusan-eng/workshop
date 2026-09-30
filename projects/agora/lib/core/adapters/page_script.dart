@@ -156,7 +156,13 @@ function agoraKernel(op, A) {
       role: (el.getAttribute && (el.getAttribute('role') || '')) || '',
       testid: (el.getAttribute && (el.getAttribute('data-testid') || '')) || '',
       text: (el.innerText || '').slice(0, 120),
-      w: Math.round(r.width), h: Math.round(r.height)
+      w: Math.round(r.width), h: Math.round(r.height),
+      // Does this element actually accept typed text? The adapter healer must
+      // never propose a <button> as a replacement composer.
+      editable: !!(el.isContentEditable ||
+                   el.tagName === 'TEXTAREA' ||
+                   (el.tagName === 'INPUT' && !/^(button|submit|checkbox|radio|file|image|range)$/i.test(el.type || ''))),
+      type: (el.getAttribute && el.getAttribute('type')) || ''
     };
   }
 

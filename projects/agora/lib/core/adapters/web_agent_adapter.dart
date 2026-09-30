@@ -104,13 +104,20 @@ class WebAgentAdapter implements AgentAdapter {
 
       _emit(AgentPhase.opening);
       await _navigate(config.homeUrl);
-      await _waitForComposer();
+
+      // Short first wait only. A logged-out / CAPTCHA / rate-limit page has no
+      // composer at all, so we must probe login state early instead of burning
+      // the full composer timeout on a page that will never render one.
+      await _waitForComposer(timeout: const Duration(seconds: 4));
 
       final LoginState state = await checkLogin();
       if (!state.isReady) {
         _emit(AgentPhase.blocked, detail: state.message);
         return state;
       }
+
+      // Only now insist on a composer — we know we are signed in now.
+      await _waitForComposer();
       _answerBaseline = await _answerCount();
       _emit(AgentPhase.ready);
       return state;
@@ -518,38 +525,53 @@ class WebAgentAdapter implements AgentAdapter {
 
   // ---------------------------------------------------------------- internals
 
-  /// Heuristic: the message box is the largest visible textarea or
-  /// contenteditable on the page. Used only as a repair suggestion.
+  /// Heuristic: propose a replacement composer selector.
+  ///
+  /// Only elements that genuinely accept typed text are eligible. A previous
+  /// version ranked by "has a data-testid", which happily proposed a profile
+  /// <button> as the message box — a "fix" that passed a naive exists-check
+  /// while leaving the adapter completely unable to type.
   Future<SelectorSpec?> _guessComposer(Map<String, dynamic> probe) async {
     final List<dynamic> els =
         (probe['elements'] as List<dynamic>?) ?? const <dynamic>[];
+
+    final List<Map<String, dynamic>> candidates = <Map<String, dynamic>>[];
     for (final dynamic e in els) {
       final Map<String, dynamic> m = (e as Map).cast<String, dynamic>();
-      final String tag = '${m['tag'] ?? ''}';
+      if (m['editable'] != true) continue;
       final int w = m['w'] is int ? m['w'] as int : 0;
       final int h = m['h'] is int ? m['h'] as int : 0;
-      if (tag == 'textarea' || m['testid'] != null && m['testid'] != '') {
-        // Ask the kernel for a verified selector for this exact element.
-        final Map<String, dynamic> sug = await _eval(
-          'suggest',
-          <String, dynamic>{
-            'spec': <String, dynamic>{
-              'css': <String>['$tag'],
-            },
-          },
-        );
-        final List<dynamic> cands =
-            (sug['candidates'] as List<dynamic>?) ?? const <dynamic>[];
-        if (cands.isNotEmpty) {
-          final String sel = '${(cands.first as Map)['selector']}';
-          return SelectorSpec(css: <String>[sel]);
-        }
-      }
-      if (w > 200 && h > 20) {
-        // large editable-looking box
+      // A composer is a wide box, not a one-line search field.
+      if (w < 160 || h < 24) continue;
+      candidates.add(m);
+    }
+    if (candidates.isEmpty) return null;
+
+    // Prefer the largest surface: that is the one a person would type into.
+    candidates.sort((Map<String, dynamic> a, Map<String, dynamic> b) {
+      final int areaA = (a['w'] as int) * (a['h'] as int);
+      final int areaB = (b['w'] as int) * (b['h'] as int);
+      return areaB.compareTo(areaA);
+    });
+
+    final Map<String, dynamic> best = candidates.first;
+    final Map<String, dynamic> sug = await _eval(
+      'suggest',
+      <String, dynamic>{
+        'spec': <String, dynamic>{'css': <String>['${best['tag']}']},
+      },
+    );
+    final List<dynamic> cands =
+        (sug['candidates'] as List<dynamic>?) ?? const <dynamic>[];
+    if (cands.isEmpty) return null;
+
+    // Prefer a candidate the kernel verified as exact.
+    for (final dynamic c in cands) {
+      if ((c as Map)['exact'] == true) {
+        return SelectorSpec(css: <String>['${c['selector']}']);
       }
     }
-    return null;
+    return SelectorSpec(css: <String>['${(cands.first as Map)['selector']}']);
   }
 
   Future<int> _answerCount() async {

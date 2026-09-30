@@ -430,41 +430,86 @@ def test_pbo_rank_last() -> None:
 
 def test_minbtl() -> None:
     print("\n[MinBTL]")
-    check("MinBTL > 0", min_backtest_length(10, 0.5) > 0)
-    check(
-        "MinBTL rises with trials",
-        min_backtest_length(100, 0.5) > min_backtest_length(10, 0.5),
-    )
-    check(
-        "MinBTL rises as target Sharpe falls",
-        min_backtest_length(50, 0.2) > min_backtest_length(50, 1.0),
-    )
-    # The headline result, and the reason the product exists: to claim a
-    # Sharpe of 0.5 after trying 100 variations, you need decades of data.
-    # frontier(100) ~ 2.75, so T > (2.75 * sqrt(252) / 0.5)^2 ~ 7,600
-    # observations ~ 30 years of daily bars.
+
+    # ── the headline result, and the reason the product exists ────────────
+    # To claim a Sharpe of 0.5 you need ~36 years of daily bars:
+    # power = (3 * sqrt(252) / 0.5)^2 ~ 9,070 observations.
     obs = min_backtest_length(100, 0.5)
-    check("MinBTL(100, 0.5) > 25 years of daily data", obs > 25 * 252, f"{obs}")
-    check("MinBTL(100, 0.5) < 60 years of daily data", obs < 60 * 252, f"{obs}")
+    check(
+        "MinBTL(100, 0.5) needs 30-40 years of daily data",
+        30 * 252 < obs < 40 * 252,
+        f"{obs} ({obs / 252:.1f}y)",
+    )
     # a typical retail backtest must NOT clear it
     check(
         "3 years of daily data does NOT pass MinBTL(100, 0.5)",
         3 * 252 < obs,
         f"{3 * 252} vs {obs}",
     )
-    # and a long sample should pass
-    check("10000 daily obs passes MinBTL(100, 0.5)", 10000 >= obs, f"10000 vs {obs}")
-    # Fewer trials AND a higher target needs far less data. With only 3 trials
-    # there is little to deflate against, so a SR of 1.0 is establishable in
-    # well under a year. The contrast with MinBTL(100, 0.5) is the point.
-    easy = min_backtest_length(3, 1.0)
-    check("MinBTL(3, 1.0) needs less than a year", easy < 252, f"{easy}")
-    check("MinBTL(3, 1.0) needs more than a quarter", easy > 63, f"{easy}")
     check(
-        "MinBTL(3, 1.0) is a fraction of MinBTL(100, 0.5)",
-        easy < obs / 10,
+        "10 years of daily data does NOT pass MinBTL(100, 0.5)",
+        10 * 252 < obs,
+        f"{10 * 252} vs {obs}",
+    )
+    check(
+        "40 years of daily data passes MinBTL(100, 0.5)",
+        40 * 252 >= obs,
+        f"{40 * 252} vs {obs}",
+    )
+
+    # ── which term binds is the actual insight ──────────────────────────
+    # power binds whenever the frontier multiplier mult(N) < confidence_z = 3,
+    # i.e. for roughly N < 500. Below that crossover, searching more variants
+    # costs nothing extra: the binding constraint is that you cannot yet
+    # MEASURE the effect at all, and no amount of extra trials changes that.
+    check(
+        "MinBTL is flat in trials below the crossover",
+        min_backtest_length(10, 0.5) == obs == min_backtest_length(400, 0.5),
+        f"10={min_backtest_length(10, 0.5)} 100={obs} "
+        f"400={min_backtest_length(400, 0.5)}",
+    )
+    # above the crossover deflation takes over and trials start to matter again
+    big = min_backtest_length(1000, 0.5)
+    check("MinBTL rises again past ~500 trials", big > obs, f"{big} vs {obs}")
+    check(
+        "MinBTL is monotone in trials once deflation binds",
+        min_backtest_length(500, 0.5) <= min_backtest_length(2000, 0.5),
+        f"500={min_backtest_length(500, 0.5)} 2000={min_backtest_length(2000, 0.5)}",
+    )
+    check(
+        "MinBTL rises as target Sharpe falls",
+        min_backtest_length(50, 0.2) > min_backtest_length(50, 1.0),
+    )
+
+    # ── power floor: a single trial still needs real data ───────────────
+    # The deflation term is 0 at n_trials=1, so without the power requirement
+    # this returns 0 observations and licenses "no data needed at all".
+    one = min_backtest_length(1, 0.5)
+    check("MinBTL(1, 0.5) is NOT zero", one > 0, f"{one}")
+    check(
+        "MinBTL(1, 0.5) equals the power requirement",
+        close(one, (3 * math.sqrt(252) / 0.5) ** 2, 1.0),
+        f"{one}",
+    )
+
+    # ── a big, specific target is reachable in sane time ────────────────
+    easy = min_backtest_length(3, 1.5)
+    check("MinBTL(3, 1.5) needs under 5 years", easy < 5 * 252, f"{easy}")
+    check("MinBTL(3, 1.5) needs over a quarter", easy > 63, f"{easy}")
+    check(
+        "MinBTL(3, 1.5) is under an eighth of MinBTL(100, 0.5)",
+        easy < obs / 8,
         f"{easy} vs {obs}",
     )
+
+    # scaling the confidence hurdle scales the requirement quadratically
+    loose = min_backtest_length(1, 0.5, confidence_z=2.0)
+    check(
+        "a 2-sigma hurdle needs ~2.25x fewer obs (z is squared)",
+        abs(loose * 2.25 - one) < 1.0,
+        f"loose={loose} strict={one}",
+    )
+
     # units sanity: scaling periods_per_year by 4 (quarterly) must quarter the
     # required observation count, because each observation carries more signal
     q = min_backtest_length(100, 0.5, periods_per_year=63)
@@ -476,6 +521,7 @@ def test_minbtl() -> None:
     for bad, msg in (
         (lambda: min_backtest_length(10, 0.0), "zero target"),
         (lambda: min_backtest_length(10, -1.0), "negative target"),
+        (lambda: min_backtest_length(10, 0.5, confidence_z=0.0), "zero z"),
     ):
         try:
             bad()
@@ -631,6 +677,46 @@ def test_autopsy() -> None:
         "short backtest flagged via MinBTL",
         any("MinBTL" in r for r in short["reasons"]),
         f"{short['reasons']}",
+    )
+
+    # ── non-normality must reach the verdict ────────────────────────────────
+    # Skew/kurtosis used to be silently dropped, which is the one thing PSR
+    # exists to correct for. Same headline Sharpe, fatter tails => less
+    # confidence, never more.
+    base = dict(
+        name="Fat Tail Test",
+        sharpe_ratio=1.0,
+        n_trials=10,
+        n_obs=1000,
+        backtest_excess_bps=500,
+        live_excess_bps=480,
+    )
+    normal = autopsy(**base, skew=0.0, kurt=3.0)
+    fat = autopsy(**base, skew=-1.5, kurt=12.0)
+    check(
+        "fat tails lower DSR at equal Sharpe",
+        fat["deflated_sharpe"]["dsr"] < normal["deflated_sharpe"]["dsr"],
+        f"normal {normal['deflated_sharpe']['dsr']} vs fat "
+        f"{fat['deflated_sharpe']['dsr']}",
+    )
+    check(
+        "autopsy echoes the skew it was given",
+        fat["deflated_sharpe"]["skew"] == -1.5
+        and fat["deflated_sharpe"]["kurtosis"] == 12.0,
+        f"{fat['deflated_sharpe']}",
+    )
+    order = ["high", "medium", "low"]
+    check(
+        "fat tails never improve severity",
+        order.index(fat["severity"]) >= order.index(normal["severity"]),
+        f"normal {normal['severity']} vs fat {fat['severity']}",
+    )
+    # extreme non-normality must not blow up or divide by zero
+    wild = autopsy(**base, skew=-3.0, kurt=40.0)
+    check(
+        "pathological tails stay finite",
+        0.0 <= wild["deflated_sharpe"]["dsr"] <= 1.0,
+        f"{wild['deflated_sharpe']['dsr']}",
     )
 
 

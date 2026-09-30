@@ -519,6 +519,8 @@ def autopsy(
     t_stat: float | None = None,
     n_tests: int | None = None,
     periods_per_year: int = 252,
+    skew: float = 0.0,
+    kurt: float = 3.0,
 ) -> dict:
     """Full forensic autopsy of a claimed signal.
 
@@ -545,6 +547,8 @@ def autopsy(
         n_obs,
         sigma_sharpe=sigma_sharpe,
         periods_per_year=periods_per_year,
+        skew=skew,
+        kurt=kurt,
     )
     btl = min_backtest_length(
         n_trials,

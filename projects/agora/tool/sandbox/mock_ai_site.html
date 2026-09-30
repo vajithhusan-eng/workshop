@@ -72,19 +72,29 @@
 //   mode=captcha     shows a challenge page
 //   mode=ratelimit   shows a 429 wall
 // ---------------------------------------------------------------------------
-const MODE = new URLSearchParams(location.search).get('mode') || 'ok';
+const _params = new URLSearchParams(location.search);
+const MODE = _params.get('mode') || 'ok';
+// Per-chunk streaming delay in ms. Tests that need to interrupt mid-answer
+// pass ?delay=250 so the race is deterministic instead of machine-dependent.
+const DELAY = Number(_params.get('delay') || 25) || 25;
 const thread = document.getElementById('thread');
 const composer = document.getElementById('composer');
 const sendBtn = document.getElementById('send-button');
 const stopBtn = document.getElementById('stop-button');
 
 let streaming = false;
-let timer = null;
+// Real generation aborts cooperatively; a timeout alone does not stop an
+// await-loop that keeps assigning textContent. Bump this to cancel in-flight.
+let abortToken = 0;
 
 // Turns on the blocked-state pages for the login/CAPTCHA/rate-limit checks.
 if (MODE !== 'ok') {
   const box = document.createElement('div');
   box.id = 'blocked';
+  // Real walls are headings/banners; ours carries data-testid so the kernel's
+  // TEXT_TAGS pool can actually match it (a bare <div> is not in TEXT_TAGS).
+  box.setAttribute('data-testid', 'blocked-banner');
+  box.setAttribute('role', 'status');
   box.textContent = MODE === 'loggedout' ? 'Sign in to continue'
                   : MODE === 'captcha' ? 'Verifying you are human...'
                   : 'Too many requests. Try again later.';
@@ -126,15 +136,19 @@ const SCRIPT = [
 ];
 
 async function streamInto(node, text) {
+  const mine = ++abortToken;
   streaming = true;
   stopBtn.style.display = 'inline-block';
   sendBtn.style.display = 'none';
   for (let i = 0; i < text.length; i += 3) {
-    await new Promise(r => setTimeout(r, 12));
+    if (mine !== abortToken) return;   // cancelled mid-stream
+    await new Promise(r => setTimeout(r, DELAY));
+    if (mine !== abortToken) return;
     node.textContent = text.slice(0, i + 3);
     node.appendChild(Object.assign(document.createElement('span'), { className: 'cursor' }));
     thread.scrollTop = thread.scrollHeight;
   }
+  if (mine !== abortToken) return;
   node.textContent = text; // cursor span discarded
   streaming = false;
   stopBtn.style.display = 'none';
@@ -155,7 +169,7 @@ sendBtn.addEventListener('click', async () => {
 
 stopBtn.addEventListener('click', () => {
   if (!streaming) return;
-  clearTimeout(timer);
+  abortToken++;            // abort the in-flight stream
   streaming = false;
   stopBtn.style.display = 'none';
   sendBtn.style.display = 'inline-block';

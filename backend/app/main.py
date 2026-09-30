@@ -1,7 +1,7 @@
 from __future__ import annotations
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime, timezone
 import json, os
 
@@ -14,7 +14,7 @@ from .data_seed import (
     TECHNIQUES,
 )
 from .guardrails import check_output, brief_disclaimer, ADVISER_MODE
-from .forensics import autopsy
+from .forensics import autopsy, momentum_crash_risk, pbo_cscv
 from .watchloop import RULES, detect
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "omnivest_journal.json")
@@ -33,6 +33,22 @@ def _save(db):
         json.dump(db, f, indent=2)
 
 
+def _delete_entries_where(predicate) -> int:
+    """Remove entries matching predicate. Returns how many went.
+
+    A journal you cannot correct is not a journal. Every write path here needs a
+    matching undo, or the first mistyped symbol becomes a permanent, trusted-
+    looking record of something the user never did.
+    """
+    db = _load()
+    before = len(db.get("entries", []))
+    db["entries"] = [e for e in db.get("entries", []) if not predicate(e)]
+    removed = before - len(db["entries"])
+    if removed:
+        _save(db)
+    return removed
+
+
 app = FastAPI(
     title="OMNIVEST",
     version="0.1.0",
@@ -46,6 +62,12 @@ app.add_middleware(
 
 # ---------- models ----------
 class JournalEntry(BaseModel):
+    # extra="forbid" is load-bearing, not pedantry. `why` is the thesis — the
+    # whole reason the journal exists — and a frontend sending `note` or
+    # `thesis` would otherwise be silently dropped, losing the user's written
+    # reasoning with no error anywhere. A 422 is loud; a blank thesis is not.
+    model_config = ConfigDict(extra="forbid")
+
     symbol: str
     side: str = "buy"
     qty: float = 0
@@ -78,11 +100,41 @@ class BriefReq(BaseModel):
 
 
 class AutopsyReq(BaseModel):
+    """Everything the forensics engine needs, and nothing it has to guess.
+
+    Defaults are deliberately set to a *typical retail factor* rather than a
+    flattering one: most signals the app gets handed should not survive.
+    """
+
     name: str = "Momentum 12-1"
     sharpe: float = 0.68
     trials: int = 47
+    # Observations behind the backtest. 3y of daily bars is the usual claim.
+    n_obs: int = 756
     backtest_excess_bps: int = 309
     live_excess_bps: int = -150
+    # Optional: if the backtest did not span many years, divide by 252.
+    periods_per_year: int = 252
+    skew: float = 0.0
+    kurtosis: float = 3.0
+    t_stat: float | None = None
+    n_tests: int | None = None
+    confidence_z: float = 3.0
+
+
+class PboReq(BaseModel):
+    """PBO needs the whole thing: N strategies x T periods of returns.
+
+    This is deliberately not a summary-statistic endpoint. PBO is about how a
+    *selection procedure* behaves across splits, which no single Sharpe
+    number can tell you. If you only have a headline Sharpe, that is a DSR
+    question, not a PBO question.
+    """
+
+    name: str = "screen"
+    returns_matrix: list[list[float]]
+    n_splits: int = 8
+    periods_per_year: int = 252
 
 
 class AskReq(BaseModel):
@@ -161,6 +213,30 @@ def add_entry(e: JournalEntry):
 @app.get("/api/journal/entries")
 def list_entries():
     return _load()
+
+
+@app.delete("/api/journal/entries/{index}")
+def delete_entry(index: int):
+    """Delete one entry by index. Indices are positions in the current listing,
+    so the client should re-read after deleting."""
+    db = _load()
+    entries = db.get("entries", [])
+    if not 0 <= index < len(entries):
+        raise HTTPException(status_code=404, detail=f"no entry at index {index}")
+    removed = entries.pop(index)
+    _save(db)
+    return {"ok": True, "deleted": removed, "total": len(entries)}
+
+
+@app.delete("/api/journal/entries")
+def clear_entries():
+    """Wipe the trade log. Deliberately separate from delete-one: this is the
+    'start over' action and should never be one mis-tap from an entry."""
+    db = _load()
+    removed = len(db.get("entries", []))
+    db["entries"] = []
+    _save(db)
+    return {"ok": True, "deleted": removed}
 
 
 @app.get("/api/journal/stats")
@@ -262,8 +338,101 @@ def brief(req: BriefReq):
 @app.post("/api/forensics/autopsy")
 def forensics(req: AutopsyReq):
     return autopsy(
-        req.name, req.sharpe, req.trials, req.backtest_excess_bps, req.live_excess_bps
+        req.name,
+        sharpe_ratio=req.sharpe,
+        n_trials=req.trials,
+        n_obs=req.n_obs,
+        backtest_excess_bps=req.backtest_excess_bps,
+        live_excess_bps=req.live_excess_bps,
+        skew=req.skew,
+        kurt=req.kurtosis,
+        t_stat=req.t_stat,
+        n_tests=req.n_tests,
     )
+
+
+@app.post("/api/forensics/pbo")
+def forensics_pbo(req: PboReq):
+    """Probability of Backtest Overfitting via CSCV (Bailey et al. 2017).
+
+    Single-draw PBO is materially noisy: the C(S, S/2) splits share subperiods,
+    so treat the number as a signal, not a measurement. Re-run across
+    different split points before believing it.
+    """
+    try:
+        return pbo_cscv(
+            req.returns_matrix,
+            n_splits=req.n_splits,
+            periods_per_year=req.periods_per_year,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/forensics/crowding")
+def forensics_crowding(
+    comomentum: float = 0.2,
+    vol_percentile: float = 0.2,
+):
+    """Momentum crash-risk overlay (Daniel & Moskowitz 2016; Lou & Polk 2022).
+
+    Both inputs are percentiles in [0, 1]. Crowding and volatility are the two
+    documented preconditions; both together is where the short leg explodes.
+    """
+    for name, value in (("comomentum", comomentum), ("vol_percentile", vol_percentile)):
+        if not 0.0 <= value <= 1.0:
+            raise HTTPException(
+                status_code=422,
+                detail=f"{name} must be a percentile in [0, 1], got {value}",
+            )
+    return momentum_crash_risk(comomentum, vol_percentile)
+
+
+@app.get("/api/forensics/cite")
+def forensics_cite():
+    """The papers these numbers come from. Shipped with the app on purpose —
+    a forensics product that hides its sources is just an oracle."""
+    return {
+        "E[max Sharpe under null]": {
+            "claim": "sharpe_frontier()",
+            "source": "Bailey & Lopez de Prado, 'The Sharpe Ratio Efficient "
+            "Frontier', Journal of Risk 15(2), 2012",
+        },
+        "PSR / DSR": {
+            "claim": "psr() / deflated_sharpe()",
+            "source": "Bailey & Lopez de Prado, 'The Deflated Sharpe Ratio', "
+            "Journal of Portfolio Management 40(5):94-107, 2014",
+        },
+        "PBO via CSCV": {
+            "claim": "pbo_cscv()",
+            "source": "Bailey, Borwein, Lopez de Prado & Zhu, 'The "
+            "Probability of Backtest Overfitting', J. Computational Finance "
+            "20(4):39-69, 2017",
+        },
+        "FDR / multiple testing": {
+            "claim": "fdr_adjusted_pvalue()",
+            "source": "Harvey, Liu & Zhu, '...and the Cross-Section of "
+            "Expected Returns', RFS 29(1), 2016 (t>3.0 hurdle); Harvey & "
+            "Liu, 'False (and Missed) Discoveries in Financial Economics', "
+            "Journal of Finance 75(5), 2020 (FDR calibration). NOTE: this "
+            "implementation is a Bonferroni normal approximation, not the "
+            "paper's double bootstrap. Screening use only.",
+        },
+        "post-publication decay": {
+            "claim": "autopsy().decay",
+            "source": "McLean & Pontiff, 'Does Academic Research Destroy "
+            "Stock Return Predictability?', Journal of Finance 71(1), 2016 "
+            "-- 26% out-of-sample, 58% post-publication",
+        },
+        "momentum crash risk": {
+            "claim": "momentum_crash_risk()",
+            "source": "Daniel & Moskowitz, 'Momentum Crashes', JFE "
+            "122(2), 2016; Lou & Polk, 'Comomentum', Journal of Finance "
+            "77(1), 2022",
+        },
+        "disclaimer": "Implementation, not a legal or investment opinion. "
+        "Every number is reproducible from the inputs.",
+    }
 
 
 # ask (retrieval stub — library-first, never a trading call in safe mode)

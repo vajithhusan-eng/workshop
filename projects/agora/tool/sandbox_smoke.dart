@@ -35,38 +35,42 @@ void check(String label, bool ok, [String detail = '']) {
 
 void section(int n, String title) => stdout.writeln('\n$n. $title');
 
-/// Run JS against the sandbox page on a throwaway session.
+/// One long-lived inspection session per target.
+///
+/// The previous version attached and detached on every call. CDP's
+/// detach-then-reattach churn invalidated another adapter's flattened session
+/// ("Session with given id not found"), so sessions are cached per target and
+/// torn down with the target instead.
+final Map<String, String> _sessions = <String, String>{};
+
+Future<String> _sessionFor(CdpClient client, String targetId) async {
+  final String? cached = _sessions[targetId];
+  if (cached != null) return cached;
+  final attached = await client.send(
+    'Target.attachToTarget',
+    params: <String, dynamic>{'targetId': targetId, 'flatten': true},
+  ) as Map<String, dynamic>;
+  final String sessionId = attached['sessionId'] as String;
+  _sessions[targetId] = sessionId;
+  return sessionId;
+}
+
+void _dropSession(String targetId) => _sessions.remove(targetId);
+
+/// Run JS against the sandbox page.
 Future<Object?> evalOn(CdpClient client, String targetId, String js) async {
-  final attached =
-      await client.send(
-            'Target.attachToTarget',
-            params: <String, dynamic>{'targetId': targetId, 'flatten': true},
-          )
-          as Map<String, dynamic>;
-  final sessionId = attached['sessionId'] as String;
-  try {
-    final res =
-        await client.send(
-              'Runtime.evaluate',
-              params: <String, dynamic>{
-                'expression': js,
-                'returnByValue': true,
-                'awaitPromise': true,
-              },
-              sessionId: sessionId,
-            )
-            as Map<String, dynamic>;
-    final result = res['result'] as Map<String, dynamic>?;
-    return result?['value'];
-  } finally {
-    await client
-        .send(
-          'Target.detachFromTarget',
-          params: <String, dynamic>{'sessionId': sessionId},
-        )
-        .timeout(const Duration(seconds: 5), onTimeout: () => null)
-        .catchError((Object _) => null);
-  }
+  final String sessionId = await _sessionFor(client, targetId);
+  final res = await client.send(
+    'Runtime.evaluate',
+    params: <String, dynamic>{
+      'expression': js,
+      'returnByValue': true,
+      'awaitPromise': true,
+    },
+    sessionId: sessionId,
+  ) as Map<String, dynamic>;
+  final result = res['result'] as Map<String, dynamic>?;
+  return result?['value'];
 }
 
 Future<String> loadSandboxAdapter() async {
@@ -249,41 +253,72 @@ Future<void> main() async {
 
     // -- 8. interrupt ----------------------------------------------------------
     section(8, 'Interrupt (polite cancellation)');
-    await adapter.send('this one gets stopped midway through');
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    await adapter.interrupt();
-    final stopped = await adapter.awaitCompletion();
+    // A dedicated slow instance (?delay=250) makes "interrupt lands mid-answer"
+    // deterministic. Racing the default-speed fixture is machine-dependent and
+    // proved worthless: on a fast run the answer simply finished first.
+    final slowAdapter = await attach(
+      client,
+      cfg.copyWith(homeUrl: '$base?delay=250'),
+    );
+    await slowAdapter.connect();
+    await slowAdapter.send('this one gets stopped midway through');
+    await Future<void>.delayed(const Duration(milliseconds: 140));
+    final midStream = await evalOn(client, slowAdapter.targetId,
+        'window.__mock.streaming') as bool?;
+    check('fixture is genuinely mid-stream', midStream == true);
+    await slowAdapter.interrupt();
+    final stopped = await slowAdapter.awaitCompletion();
     check(
       'interrupted answer still returns content',
       !stopped.isEmpty,
       '${stopped.length} chars',
     );
+    final streamingNow =
+        await evalOn(client, slowAdapter.targetId, 'window.__mock.streaming');
+    check('streaming stopped after interrupt', streamingNow == false);
     check(
       'cancellation is visible to the user, not silently swallowed',
       stopped.rawText.contains('[stopped by user]'),
-      'marker present',
+      'tail="${stopped.rawText.substring(stopped.rawText.length > 70 ? stopped.rawText.length - 70 : 0)}"',
     );
+    check(
+      'a truncated answer is kept as-is, never padded or invented',
+      stopped.rawText.trimRight().endsWith('[stopped by user]'),
+      'verbatim truncated tail preserved',
+    );
+    await slowAdapter.close();
+    _dropSession(slowAdapter.targetId);
 
-    // -- 9. blocked states -----------------------------------------------------
     section(9, 'Blocked states (login / captcha / rate limit)');
-    for (final mode in <String, LoginStatus>{
+    final expectedStates = <String, LoginStatus>{
       'loggedout': LoginStatus.loggedOut,
       'captcha': LoginStatus.captcha,
       'ratelimit': LoginStatus.rateLimited,
-    }.keys) {
+    };
+    for (final MapEntry<String, LoginStatus> entry in expectedStates.entries) {
+      final String mode = entry.key;
+      final LoginStatus expected = entry.value;
       final blockedCfg = cfg.copyWith(homeUrl: '$base?mode=$mode');
       final probeAdapter = await attach(client, blockedCfg);
       final state = await probeAdapter.connect();
       check(
-        'mode=$mode detected as ${mode}Status',
-        state.status == mode,
-        'got ${state.status.name}: ${state.message}',
+        'mode=$mode detected as ${expected.name}',
+        state.status == expected,
+        'got ${state.status.name}',
       );
       check(
         'mode=$mode tells the user what to do',
         state.needsUser && state.message.isNotEmpty,
         state.message,
       );
+      // Close the probe adapter: three leaked tabs would otherwise keep three
+      // extra CDP sessions attached and mask real failures later.
+      await probeAdapter.close();
+      _dropSession(probeAdapter.targetId);
+      await client
+          .send('Target.closeTarget',
+              params: <String, dynamic>{'targetId': probeAdapter.targetId})
+          .catchError((Object _) => null);
     }
 
     // -- 10. diagnose / healer -------------------------------------------------
@@ -304,10 +339,42 @@ Future<void> main() async {
       diag.results['assistantNode'] == true,
     );
     check(
-      'healer proposes a composer selector',
-      diag.suggestions['composer'] != null,
-      diag.suggestions['composer']?.toString() ?? '',
+      'healthy adapter needs no repairs',
+      diag.suggestions.isEmpty,
+      'a working adapter should propose nothing',
     );
+
+    // The healer only earns its keep when a selector actually breaks — which
+    // is exactly what happens the day ChatGPT renames a button.
+    final brokenCfg = cfg.copyWith(
+      composer: const SelectorSpec(css: ['#does-not-exist-anymore']),
+    );
+    final brokenAdapter = await attach(client, brokenCfg);
+    await brokenAdapter.connect();
+    final brokenDiag = await brokenAdapter.diagnose();
+    check(
+      'broken composer is reported broken',
+      brokenDiag.results['composer'] == false,
+      brokenDiag.results.toString(),
+    );
+    check(
+      'healer proposes a working replacement selector',
+      brokenDiag.suggestions['composer'] != null,
+      brokenDiag.suggestions['composer']?.toString() ?? '',
+    );
+    if (brokenDiag.suggestions['composer'] != null) {
+      final SelectorSpec healed = brokenDiag.suggestions['composer']!;
+      final repaired = cfg.copyWith(composer: healed);
+      final repairedAdapter = await attach(client, repaired);
+      await repairedAdapter.connect();
+      check(
+        'applying the suggested selector actually fixes it',
+        (await repairedAdapter.diagnose()).results['composer'] == true,
+        healed.toString(),
+      );
+      await repairedAdapter.close();
+    }
+    await brokenAdapter.close();
 
     // -- 11. config rejects a broken adapter ----------------------------------
     section(11, 'Config validation rejects broken adapters');
@@ -338,6 +405,7 @@ Future<void> main() async {
     check('malformed JSON throws FormatException', threw);
 
     await adapter.close();
+    _dropSession(adapter.targetId);
   } on AdapterException catch (e) {
     check('no adapter exception escaped', false, '${e.kind}: ${e.message}');
   } on CdpException catch (e) {
