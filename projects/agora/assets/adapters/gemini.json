@@ -1,0 +1,136 @@
+{
+  "kind": "gemini",
+  "version": "2026.09.29",
+  "displayName": "Gemini",
+  "homeUrl": "https://gemini.google.com/app",
+  "newChatUrl": "https://gemini.google.com/app",
+  "color": "#8E7BFF",
+
+  "composer": {
+    "css": [
+      "rich-textarea .ql-editor",
+      "rich-textarea div[contenteditable=\"true\"]",
+      "div.ql-editor[contenteditable=\"true\"]",
+      "input-area rich-textarea div[contenteditable=\"true\"]",
+      "div[contenteditable=\"true\"][aria-label*=\"Enter a prompt\" i]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]"
+    ],
+    "text": ["enter a prompt", "ask gemini", "type your answer here"]
+  },
+
+  "send": {
+    "css": [
+      "button.send-button",
+      "input-area button.send-button",
+      "button[aria-label*=\"Send\" i]",
+      "button[aria-label*=\"Send message\" i]"
+    ],
+    "text": ["send message", "send"]
+  },
+  "sendWithEnter": true,
+
+  "login": {
+    "loggedIn": {
+      "css": [
+        "a[aria-label*=\"Google Account\" i]",
+        "div[aria-label*=\"Google Account\" i]",
+        ".gb_B[aria-label*=\"Account\"]",
+        "a[href*=\"accounts.google.com\"][aria-label]"
+      ],
+      "text": ["google account", "my account", "gemini settings"]
+    },
+    "loggedOut": {
+      "css": [
+        "a[href*=\"accounts.google.com/ServiceLogin\"]",
+        "a[href*=\"ServiceLogin\"]",
+        "a[href=\"/signin\"]",
+        "a[href*=\"signin\"]"
+      ],
+      "text": ["sign in", "log in", "continue with google"]
+    },
+    "captcha": {
+      "css": [
+        "#recaptcha",
+        ".g-recaptcha",
+        "iframe[title*=\"reCAPTCHA\" i]",
+        "div[aria-label*=\"recaptcha\" i]",
+        "#captcha-form"
+      ],
+      "text": ["i'm not a robot", "verify you are human", "unusual traffic"]
+    },
+    "rateLimited": {
+      "css": [],
+      "text": [
+        "rate limit",
+        "too many requests",
+        "quota exceeded",
+        "try again later",
+        "resource has been exhausted"
+      ]
+    }
+  },
+
+  "completion": {
+    "stableMs": 1600,
+    "pollMs": 400,
+    "timeoutMs": 240000,
+    "stopButton": {
+      "css": [
+        "button.stop-streaming",
+        "button[aria-label*=\"Stop\" i]",
+        "input-area button[aria-label*=\"stop\" i]"
+      ],
+      "text": ["stop response", "stop generating"]
+    },
+    "cancelledText": ["stop", "stop response"]
+  },
+
+  "extraction": {
+    "assistantNode": {
+      "css": [
+        "model-response",
+        "message-content model-response",
+        ".model-response-text",
+        "model-response .markdown",
+        "div[class*=\"model-response\"]"
+      ]
+    },
+    "userNode": {
+      "css": [
+        "user-query",
+        ".user-query",
+        "div[class*=\"user-query\"]"
+      ]
+    },
+    "container": {
+      "css": ["#chat-history", "chat-window", "main", "div[role=\"main\"]"]
+    },
+    "streamingHint": {
+      "css": [".model-response.streaming", "model-response[data-streaming]"]
+    },
+    "screenshotOnStore": true
+  },
+
+  "modelPicker": {
+    "trigger": {
+      "css": [
+        "bard-mode-selector",
+        ".bard-mode-selector",
+        "div[role=\"button\"][aria-label*=\"mode\" i]",
+        "mat-icon-button[aria-label*=\"model\" i]"
+      ]
+    },
+    "menu": {
+      "css": ["mat-menu", ".mat-mdc-menu-panel", "[role=\"menu\"]"]
+    },
+    "options": {
+      "gemini-2.5-pro": { "text": ["gemini 2.5 pro", "pro"] },
+      "gemini-2.5-flash": { "text": ["gemini 2.5 flash", "fast"] },
+      "gemini-2.0-flash": { "text": ["gemini 2.0 flash"] }
+    }
+  },
+
+  "knownModels": ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash"],
+
+  "notes": "Gemini renders into <model-response>; its composer is a Quill editor (rich-textarea .ql-editor) inside a shadow host on some builds, which the page kernel pierces. Models move often - edit knownModels or add options freely."
+}

@@ -1,0 +1,122 @@
+{
+  "kind": "deepseek",
+  "version": "2026.09.29",
+  "displayName": "DeepSeek",
+  "homeUrl": "https://chat.deepseek.com/",
+  "newChatUrl": "https://chat.deepseek.com/",
+  "color": "#4D6BFE",
+
+  "composer": {
+    "css": [
+      ".fbb737a4 div[contenteditable=\"true\"]",
+      ".fbb737a4 textarea",
+      "div[class*=\"fbb737a4\"] div[contenteditable=\"true\"]",
+      "textarea#dummy-input",
+      "#chat-input textarea",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
+      "textarea"
+    ],
+    "text": ["send a message", "ask deepseek", "enter your message"]
+  },
+
+  "send": {
+    "css": [
+      ".fbb737a4 button",
+      ".fbb737a4 .bf38813a",
+      "div[class*=\"fbb737a4\"] button:not([disabled])",
+      "button[aria-label*=\"Send\" i]",
+      "#chat-input button"
+    ],
+    "text": ["send", "submit"]
+  },
+  "sendWithEnter": true,
+
+  "login": {
+    "loggedIn": {
+      "css": [
+        ".fbb737a4 + div img",
+        "div[class*=\"avatar\"]",
+        ".nickName",
+        "[data-did]"
+      ],
+      "text": ["deepseek", "new chat"]
+    },
+    "loggedOut": {
+      "css": [
+        "a[href*=\"login\"]",
+        ".login-button",
+        "div[class*=\"login\"]"
+      ],
+      "text": ["log in", "sign in", "sign up", "login"]
+    },
+    "captcha": {
+      "css": [
+        ".captcha-modal",
+        "#captcha-container",
+        "iframe[src*=\"captcha\"]",
+        ".verify-code"
+      ],
+      "text": ["verify", "captcha", "slide to verify"]
+    },
+    "rateLimited": {
+      "css": [],
+      "text": [
+        "rate limit",
+        "too many requests",
+        "request failed",
+        "server busy",
+        "try again later"
+      ]
+    }
+  },
+
+  "completion": {
+    "stableMs": 1600,
+    "pollMs": 400,
+    "timeoutMs": 240000,
+    "stopButton": {
+      "css": [".icon-hdstop", "div[class*=\"hdstop\"]", "button[aria-label*=\"Stop\" i]"],
+      "text": ["stop generating", "stop"]
+    },
+    "cancelledText": ["stop"]
+  },
+
+  "extraction": {
+    "assistantNode": {
+      "css": [
+        ".fbb737a4",
+        "div[class*=\"fbb737a4\"]",
+        "[data-message-author-role=\"assistant\"]",
+        "#message-text"
+      ]
+    },
+    "userNode": {
+      "css": [
+        ".f9f12de",
+        "div[class*=\"f9f12de\"]",
+        "[data-message-author-role=\"user\"]"
+      ]
+    },
+    "container": {
+      "css": ["#chat-list", ".ba3654ca", "main"]
+    },
+    "streamingHint": {
+      "css": [".loading", "[class*=\"loading\"]"]
+    },
+    "screenshotOnStore": true
+  },
+
+  "modelPicker": {
+    "trigger": {
+      "css": []
+    },
+    "menu": {
+      "css": []
+    },
+    "options": {}
+  },
+
+  "knownModels": ["deepseek-chat", "deepseek-reasoner"],
+
+  "notes": "DeepSeek ships BUILD-HASHED classnames (.fbb737a4 = message row, .f9f12de = user row, .icon-hdstop = stop button). These change on every deploy, which is exactly why Agora keeps selectors in JSON: when they rot, Calibration Studio regenerates them and the healer proposes a verified replacement without an app release. The text fallbacks are the safety net."
+}

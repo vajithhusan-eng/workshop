@@ -1,0 +1,132 @@
+{
+  "kind": "chatgpt",
+  "version": "2026.09.29",
+  "displayName": "ChatGPT",
+  "homeUrl": "https://chatgpt.com/",
+  "newChatUrl": "https://chatgpt.com/",
+  "color": "#10A37F",
+
+  "composer": {
+    "css": [
+      "#prompt-textarea",
+      "[data-testid=\"prompt-textarea\"]",
+      "div#prompt-textarea[contenteditable=\"true\"]",
+      "form textarea[data-testid]",
+      "form textarea",
+      "div[contenteditable=\"true\"][role=\"textbox\"]"
+    ],
+    "text": ["ask anything", "message chatgpt", "how can i help"]
+  },
+
+  "send": {
+    "css": [
+      "button[data-testid=\"send-button\"]",
+      "form button[type=\"submit\"]",
+      "form button[aria-label*=\"Send\" i]",
+      "button[aria-label*=\"Send prompt\" i]"
+    ],
+    "text": ["send message", "send prompt", "submit"]
+  },
+  "sendWithEnter": true,
+
+  "login": {
+    "loggedIn": {
+      "css": [
+        "[data-testid=\"profile-button\"]",
+        "[data-testid=\"accounts-profile-button\"]",
+        "button[data-testid=\"profile-button\"]",
+        "#headlessui-menu-button"
+      ],
+      "text": ["my profile", "account menu", "chat history"]
+    },
+    "loggedOut": {
+      "css": [
+        "a[href*=\"auth/login\"]",
+        "a[href*=\"/auth/\"]",
+        "form[action*=\"auth\"]"
+      ],
+      "text": ["log in", "sign up", "continue with google"]
+    },
+    "captcha": {
+      "css": [
+        "#cf-chl-widget",
+        "[data-testid=\"cf-turnstile\"]",
+        "iframe[src*=\"challenges.cloudflare.com\"]",
+        "iframe[title*=\"challenge\" i]",
+        ".cf-challenge"
+      ],
+      "text": ["verify you are human", "i'm not a robot", "checking your browser"]
+    },
+    "rateLimited": {
+      "css": [],
+      "text": [
+        "rate limit",
+        "too many requests",
+        "you have exceeded",
+        "try again later",
+        "unusual activity"
+      ]
+    }
+  },
+
+  "completion": {
+    "stableMs": 1600,
+    "pollMs": 400,
+    "timeoutMs": 240000,
+    "stopButton": {
+      "css": [
+        "button[data-testid=\"stop-button\"]",
+        "button[aria-label*=\"Stop\" i]"
+      ],
+      "text": ["stop generating", "stop streaming"]
+    },
+    "cancelledText": ["stop", "stop generating", "stop streaming"]
+  },
+
+  "extraction": {
+    "assistantNode": {
+      "css": [
+        "[data-message-author-role=\"assistant\"]",
+        "article[data-message-author-role=\"assistant\"]",
+        ".agent-turn"
+      ]
+    },
+    "userNode": {
+      "css": [
+        "[data-message-author-role=\"user\"]",
+        "article[data-message-author-role=\"user\"]"
+      ]
+    },
+    "container": {
+      "css": ["main", "#thread", "div[role=\"main\"]"]
+    },
+    "streamingHint": {
+      "css": [".result-streaming", "[data-message-author-role][data-is-streaming]"]
+    },
+    "screenshotOnStore": true
+  },
+
+  "modelPicker": {
+    "trigger": {
+      "css": [
+        "[data-testid=\"model-switcher-dropdown-button\"]",
+        "button[aria-label*=\"Model\" i]",
+        "header button[class*=\"model\" i]"
+      ]
+    },
+    "menu": {
+      "css": ["[role=\"menu\"]", "[role=\"listbox\"]", "div[role=\"dialog\"]"]
+    },
+    "options": {
+      "gpt-5": { "text": ["gpt-5"] },
+      "gpt-5-thinking": { "text": ["gpt-5 thinking", "gpt-5 (thinking)"] },
+      "gpt-5-mini": { "text": ["gpt-5 mini"] },
+      "o3": { "text": ["o3"] },
+      "o4-mini": { "text": ["o4-mini", "o4 mini"] }
+    }
+  },
+
+  "knownModels": ["gpt-5", "gpt-5-thinking", "gpt-5-mini", "o3", "o4-mini"],
+
+  "notes": "Selectors are ordered best-first; only the first VISIBLE hit wins. If ChatGPT redesigns, drop a fixed copy of this file into ~/.config/agora/adapters/chatgpt.json - no app release needed. Use Calibration Studio (or `dart run tool/sandbox_smoke.dart` healer checks) to regenerate."
+}

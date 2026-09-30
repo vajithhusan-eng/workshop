@@ -229,25 +229,25 @@ def classify_order(order: dict) -> OrderVerdict:
 def passive_countermodel(
     audits: list[OrderVerdict],
     fill_probability: float = 0.30,
-    halve_aggressive: bool = True,
 ) -> dict:
-    """What a fully passive book would plausibly have cost. A MODEL, clearly so.
+    """What a passive book would have cost. A MODEL, clearly labelled as one.
 
-    Assumes each aggressive order, rewritten as a passive limit at the anchor,
-    would have filled with probability `fill_probability` and that the unfilled
-    remainder is simply not traded (so no cost, and no benefit — we do not
-    pretend to capture upside you may never have got).
+    Two facts, and only two:
+      1. A passive limit resting at the anchor pays no crossing cost, so the
+         measured realised crossing cost would fall to roughly zero.
+      2. It would have filled only with probability `fill_probability`. The
+         remaining (1-p) of those trades would not have happened at all.
 
-    Both knobs are returned alongside the answer so the reader can see exactly
-    what was assumed, and can rerun it. This is not a forecast of what would
-    have happened; it is the smallest defensible counterfactual.
+    So the crossing cost avoided is the full measured cost -- but it is not free
+    money. It is bought with the trades you would not have made, and whether
+    those missing trades would have won or lost is unknowable from fill data.
+    This function refuses to net that out, because netting it needs exactly the
+    return data we are trying to teach the user not to fabricate.
     """
     if not 0.0 < fill_probability <= 1.0:
         raise ValueError("fill_probability must be in (0, 1]")
 
-    aggressive = [
-        a for a in audits if a.verdict == VERDICT_AGGRESSIVE and a.cost_bps > 0
-    ]
+    aggressive = [a for a in audits if a.verdict == VERDICT_AGGRESSIVE and a.cost_bps > 0]
     if not aggressive:
         return {
             "applicable": False,
@@ -257,38 +257,29 @@ def passive_countermodel(
 
     realised = sum(a.cost_bps for a in aggressive)
     n = len(aggressive)
-    # A passive fill at the anchor pays roughly nothing in crossing cost; the
-    # exposure is simply the chance of not trading at all.
-    modelled_cost = 0.0
-    missed = 0
-    for _ in aggressive:
-        if fill_probability >= 1.0:
-            modelled_cost += 0.0
-        else:
-            # deterministic expected value, expressed in bps
-            modelled_cost += 0.0
-            missed += 1 if fill_probability < 0.5 else 0
+    missed = n * (1.0 - fill_probability)
 
-    expected_saving = realised - modelled_cost
     return {
         "applicable": True,
         "measured_realised_cost_bps": round(realised, 2),
-        "modelled_passive_cost_bps": round(modelled_cost, 2),
-        "expected_saving_bps": round(expected_saving, 2),
+        "modelled_passive_crossing_bps": 0.0,
+        "crossing_cost_avoided_bps": round(realised, 2),
         "n_aggressive": n,
+        "trades_that_would_not_have_happened": round(missed, 1),
         "assumptions": {
             "fill_probability": fill_probability,
-            "halve_aggressive": halve_aggressive,
             "note": (
-                "Passive limit at the anchor assumed to cross at the anchor, "
-                "i.e. ~0 crossing cost. Orders that would not have filled are "
-                "not counted as savings — only the crossing cost avoided is."
+                "Passive limit assumed to rest at the anchor and fill at it, "
+                "so zero crossing cost. No optimistic fill-price improvement is "
+                "credited, because that depends on a queue position you cannot "
+                "observe from your own fills."
             ),
         },
         "caveat": (
-            "A model, not a measurement. Fill probability is unknowable from "
-            "your own fill history. Treat this as a lower bound on the cost of "
-            "impatience, not an estimate of what you would have earned."
+            "A model, not a measurement. The cost avoided is real; the trades "
+            "you would have missed are not netted out, because whether they "
+            "would have won is unknowable. Read this as an upper bound on what "
+            "impatience cost you -- never as a return you forgone."
         ),
     }
 
