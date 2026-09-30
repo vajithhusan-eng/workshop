@@ -244,6 +244,14 @@ class WebAgentAdapter implements AgentAdapter {
     await Future<void>.delayed(const Duration(milliseconds: 120));
 
     _emit(AgentPhase.waiting);
+
+    // CRITICAL: the answer baseline MUST be captured *before* the send action.
+    // Every real AI site appends an empty assistant node synchronously inside
+    // its send click handler, so reading the count afterwards yields N+1 and
+    // `nodeCount > _answerBaseline` is then false forever — awaitCompletion
+    // spins to its full timeout on every single send. Measured on the Sandbox
+    // Lab fixture: 45s instead of 1.4s.
+    _answerBaseline = await _answerCount();
     _sentAt = _clock();
 
     if (config.send.isNotEmpty) {
@@ -252,7 +260,6 @@ class WebAgentAdapter implements AgentAdapter {
         <String, dynamic>{'spec': config.send.toJson()},
       );
       if (clicked['ok'] == true) {
-        _answerBaseline = await _answerCount();
         return;
       }
       _log.w('send button not clickable; falling back to Enter');
@@ -262,7 +269,6 @@ class WebAgentAdapter implements AgentAdapter {
       await _eval('pressEnter', <String, dynamic>{
         'spec': config.composer.toJson(),
       });
-      _answerBaseline = await _answerCount();
       return;
     }
 
@@ -351,9 +357,19 @@ class WebAgentAdapter implements AgentAdapter {
       );
     }
 
-    final Verbatim result = last.copyWith(
+    Verbatim result = last.copyWith(
       latencyMs: _clock().difference(start).inMilliseconds,
     );
+
+    // Verbatim Vault (upgrade C3): the adapter asked for a screenshot, so we
+    // take one. Failing to capture a screenshot must never lose the answer.
+    if (config.extraction.screenshotOnStore) {
+      try {
+        result = result.copyWith(screenshotBytes: await screenshot());
+      } catch (e) {
+        _log.w('screenshot failed for $kind; keeping text-only Verbatim', e);
+      }
+    }
 
     _emit(AgentPhase.done, detail: '${result.length} chars');
     await _tokens.close();

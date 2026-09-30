@@ -345,8 +345,13 @@ class AdapterConfig {
   List<String> validate() {
     final problems = <String>[];
     if (kind.trim().isEmpty) problems.add('kind is required');
-    if (!homeUrl.startsWith('http')) {
-      problems.add('homeUrl must be an absolute http(s) URL');
+    // file:// is legal: the Sandbox Lab (B6) drives a local fixture so the
+    // whole orchestrator can be tested with no accounts and no quota.
+    final bool urlOk = homeUrl.startsWith('http') ||
+        homeUrl.startsWith('file://') ||
+        homeUrl.startsWith('about:');
+    if (!urlOk) {
+      problems.add('homeUrl must be an absolute http(s) or file:// URL');
     }
     if (composer.none) {
       problems.add(

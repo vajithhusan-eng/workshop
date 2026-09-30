@@ -368,29 +368,52 @@ def pbo_cscv(
 
 
 def min_backtest_length(
-    n_trials: int, target_sharpe: float = 0.5, periods_per_year: int = 252
+    n_trials: int,
+    target_sharpe: float = 0.5,
+    periods_per_year: int = 252,
+    confidence_z: float = 3.0,
 ) -> float:
-    """MinBTL: observations needed before best-of-N selection is more than noise.
+    """MinBTL: observations needed before a claimed edge stops being plausible noise.
 
-    The std-dev of a Sharpe estimated from T observations is 1/sqrt(T) in
-    per-period units. The expected max across N trials is that dispersion
-    times the [BLdP12] frontier multiplier. Require the target to exceed it:
+    Two separate requirements, and the binding one is whichever is LARGER:
 
-        (1/sqrt(T)) * mult(N)  >  target_sharpe / sqrt(periods_per_year)
-        T  >  ( mult(N) * sqrt(periods_per_year) / target_sharpe )^2
+      1. DEFLATION. The best of N trials must beat what N lucky trials would
+         produce, not merely zero:
+
+             (1/sqrt(T)) * mult(N)  >  target_sharpe / sqrt(periods_per_year)
+             T  >  ( mult(N) * sqrt(periods_per_year) / target_sharpe )^2
+
+      2. POWER. The estimate must itself be precise enough to clear zero at
+         confidence_z sigma (3.0 is the Harvey-Liu-Zhu hurdle, not the
+         conventional 2.0):
+
+             sqrt(T)  >  confidence_z / target_sharpe_per_period
+             T  >  ( confidence_z * sqrt(periods_per_year) / target_sharpe )^2
+
+    Requirement 1 alone returns ZERO observations for a single trial, because
+    the frontier multiplier is 0 when there is no search — which would license
+    "you need no data at all". That is absurd: even an untried strategy must be
+    measured precisely enough to rule out zero. Taking the max fixes it.
 
     The frame matters: 1/sqrt(T) is only the correct dispersion in per-period
-    units, and target_sharpe arrives annualised. Doing the comparison with
-    mismatched units understates the required length by a factor of ~252 and
-    makes an almost any backtest look adequate.
+    units, while target_sharpe arrives annualised. Comparing them directly
+    understates the requirement by a factor of ~252 and makes almost any
+    backtest look adequate.
+
+    In practice requirement 2 binds for every realistic Sharpe below ~1.3: a
+    0.5 annualised Sharpe needs ~36 years of daily bars to clear 3 sigma no
+    matter how few variants were tried. That is the uncomfortable part.
 
     Returns observations; divide by periods_per_year for years.
     """
     if target_sharpe <= 0:
         raise ValueError("target_sharpe must be > 0")
-    mult = sharpe_frontier(n_trials, 1.0)
-    target_per_period = target_sharpe / math.sqrt(periods_per_year)
-    return round((mult / target_per_period) ** 2, 1)
+    if confidence_z <= 0:
+        raise ValueError("confidence_z must be > 0")
+    per_period = target_sharpe / math.sqrt(periods_per_year)
+    deflation = (sharpe_frontier(n_trials, 1.0) / per_period) ** 2
+    power = (confidence_z / per_period) ** 2
+    return round(max(deflation, power), 1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
