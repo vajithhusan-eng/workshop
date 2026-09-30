@@ -1,0 +1,50 @@
+{
+  "kind": "sandbox",
+  "version": "1.0.0",
+  "displayName": "MockAI (Sandbox Lab)",
+  "homeUrl": "file:///home/vajith-husan/Documents/WORKSHOP/projects/agora/tool/sandbox/mock_ai_site.html",
+  "color": "#19c37d",
+  "composer": {
+    "css": ["#prompt-textarea", "[data-testid='prompt-textarea']"],
+    "text": ["message mockai", "ask anything"]
+  },
+  "send": {
+    "css": ["button[data-testid='send-button']", "#send-button"],
+    "text": ["send message", "send"]
+  },
+  "sendWithEnter": true,
+  "newChatUrl": "about:blank",
+  "newChatButton": { "css": ["#new-chat"] },
+  "login": {
+    "loggedIn": { "css": ["button[data-testid='profile-button']", "#profile-button"] },
+    "loggedOut": { "text": ["sign in", "log in"] },
+    "captcha": { "text": ["verifying you are human", "are you a robot", "unusual traffic"] },
+    "rateLimited": { "text": ["too many requests", "rate limit", "try again later"] }
+  },
+  "completion": {
+    "stableMs": 900,
+    "pollMs": 250,
+    "timeoutMs": 45000,
+    "stopButton": {
+      "css": ["button[data-testid='stop-button']", "#stop-button"],
+      "text": ["stop streaming", "stop generating"]
+    },
+    "cancelledText": ["stopped by user", "response cancelled", "stopped generating"]
+  },
+  "extraction": {
+    "assistantNode": {
+      "css": ["div[data-message-author-role='assistant']"],
+      "text": []
+    },
+    "userNode": { "css": ["div[data-message-author-role='user']"] },
+    "container": { "css": ["#thread"] },
+    "streamingHint": { "css": ["span.cursor"] },
+    "screenshotOnStore": true
+  },
+  "modelPicker": {
+    "trigger": { "css": [] },
+    "options": {}
+  },
+  "knownModels": ["mock-fast", "mock-thorough"],
+  "notes": "Sandbox Lab fixture adapter. Mirrors the real ChatGPT DOM contract so the orchestrator can be tested end to end with zero real accounts and zero quota."
+}

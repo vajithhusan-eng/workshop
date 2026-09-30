@@ -27,6 +27,10 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+
+# build_runner generated code. Regenerate with:
+#   dart run build_runner build --delete-conflicting-outputs
+*.g.dart
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
