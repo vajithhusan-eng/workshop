@@ -29,17 +29,22 @@ enum BudgetStop {
 
 class BudgetDecision {
   BudgetDecision(this.allowed, [this.stop, this.detail]);
+
   final bool allowed;
   final BudgetStop? stop;
   final String? detail;
 
   static final BudgetDecision ok = BudgetDecision(true);
+
+  @override
+  String toString() => allowed ? 'ok' : 'STOP(${stop?.name}): ${detail ?? ''}';
 }
 
 /// Enforces the hard limits of a session.
 ///
-/// Every check is cheap, synchronous, and has no side effects, so it can be
-/// called before every dispatch without affecting timing.
+/// Every check is cheap and side-effect free, so the orchestrator can call it
+/// before every dispatch without affecting timing. Reserve methods are the
+/// only ones that mutate state.
 class BudgetGuard {
   BudgetGuard({
     required this.maxRounds,
@@ -48,36 +53,38 @@ class BudgetGuard {
     this.maxTransportErrors = 2,
     this.dailyMessageCap = 60,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : _clock = clock ?? DateTime.now {
+    _startedAt = _clock();
+  }
 
   final int maxRounds;
   final Duration timeBudget;
   final int maxInvitesPerRound;
   final int maxTransportErrors;
 
-  /// Account-safety limit (see the risk register in PLAN.md — automating chat
-  /// UIs is against most providers' terms, so Agora stays human-paced).
+  /// Account-safety limit. See the risk register in PLAN.md: automating chat
+  /// UIs is against most providers' terms, so Agora stays human-paced.
   final int dailyMessageCap;
 
   final DateTime Function() _clock;
 
-  final DateTime _startedAt = _bootNow();
-  DateTime Function() _bootNow() => DateTime.now;
+  /// Assigned in the constructor body; field initializers cannot read `this`.
+  late final DateTime _startedAt;
+
+  int _round = 0;
+  int _invitesThisRound = 0;
+  int _transportErrors = 0;
+  final Map<String, Map<String, int>> _todaySent = <String, Map<String, int>>{};
 
   int get round => _round;
-  int _round = 0;
-
   int get elapsed => _clock().difference(_startedAt).inSeconds;
   Duration get remaining => timeBudget - Duration(seconds: elapsed);
   bool get timeExhausted => elapsed >= timeBudget.inSeconds;
-
-  int _invitesThisRound = 0;
+  bool get roundCapReached => _round >= maxRounds;
+  bool get inviteCapReached => _invitesThisRound >= maxInvitesPerRound;
   int get invitesThisRound => _invitesThisRound;
-
-  int _transportErrors = 0;
   int get transportErrors => _transportErrors;
 
-  final Map<String, int> _todaySent = <String, int>{};
   String get _day => _clock().toIso8601String().substring(0, 10);
 
   /// Begin a new round. Returns false if the cap is already hit.
@@ -88,9 +95,6 @@ class BudgetGuard {
     return true;
   }
 
-  bool get roundCapReached => _round >= maxRounds;
-  bool get inviteCapReached => _invitesThisRound >= maxInvitesPerRound;
-
   bool reserveInvite() {
     if (inviteCapReached) return false;
     _invitesThisRound++;
@@ -100,14 +104,15 @@ class BudgetGuard {
   void recordTransportError() => _transportErrors++;
   void clearTransportErrors() => _transportErrors = 0;
 
-  int sentToday(String agentKind) =>
-      _todaySent[_day]?.let((m) => m[agentKind] ?? 0) ?? 0;
+  int sentToday(String agentKind) => _todaySent[_day]?[agentKind] ?? 0;
 
-  /// Count a message actually sent to an AI site, and report if it would push
-  /// that agent over the daily cap.
+  /// Count a message actually sent to an AI site.
+  ///
+  /// Returns false when this message pushes that agent past the daily cap; the
+  /// caller must not send. (The counter still increments so the UI can show
+  /// "3 over cap".)
   bool reserveMessage(String agentKind) {
-    final day = _day;
-    final map = _todaySent.putIfAbsent(day, () => <String, int>{});
+    final map = _todaySent.putIfAbsent(_day, () => <String, int>{});
     final next = (map[agentKind] ?? 0) + 1;
     map[agentKind] = next;
     return next <= dailyMessageCap;
@@ -146,7 +151,7 @@ class BudgetGuard {
     return BudgetDecision.ok;
   }
 
-  Map<String, dynamic> toJson() => {
+  Map<String, dynamic> toJson() => <String, dynamic>{
     'round': _round,
     'maxRounds': maxRounds,
     'elapsedSeconds': elapsed,
@@ -161,18 +166,13 @@ class BudgetGuard {
 
   @override
   String toString() =>
-      'BudgetGuard(r${_round}/$maxRounds, '
+      'BudgetGuard(r$_round/$maxRounds, '
       '${elapsed}s/${timeBudget.inSeconds}s, invites $_invitesThisRound)';
 }
 
-extension _Let<T> on T {
-  R let<R>(R Function(T) f) => f(this);
-}
-
-/// Wall-clock timer that calls back once, and can be cancelled.
+/// One-shot wall-clock timer that can be cancelled.
 ///
-/// Used for "the leader has been thinking for too long" so a hung tab can
-/// never stall a session forever.
+/// Guards against a hung browser tab stalling a session forever.
 class Deadline {
   Deadline(this.duration, this.onExpire);
 
@@ -185,7 +185,7 @@ class Deadline {
   bool get fired => _fired;
 
   void start() {
-    _timer?.cancel();
+    cancel();
     _timer = Timer(duration, () {
       _fired = true;
       log.w('deadline fired after ${duration.inSeconds}s');

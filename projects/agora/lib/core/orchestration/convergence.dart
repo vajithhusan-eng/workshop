@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import '../logging.dart';
-import 'council_protocol.dart';
 
 /// One agent's self-assessment of the council's current candidate answer.
 /// This is how Agora measures convergence (A3/A4) without guessing.
@@ -397,6 +396,3 @@ Be honest. A council that stops early because everyone hedged is worthless.
 ''';
   }
 }
-
-/// Re-exported so the orchestrator needs a single import.
-typedef CouncilReport = ConvergenceReport;
