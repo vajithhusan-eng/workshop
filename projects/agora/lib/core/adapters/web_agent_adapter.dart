@@ -555,12 +555,11 @@ class WebAgentAdapter implements AgentAdapter {
     });
 
     final Map<String, dynamic> best = candidates.first;
-    final Map<String, dynamic> sug = await _eval(
-      'suggest',
-      <String, dynamic>{
-        'spec': <String, dynamic>{'css': <String>['${best['tag']}']},
+    final Map<String, dynamic> sug = await _eval('suggest', <String, dynamic>{
+      'spec': <String, dynamic>{
+        'css': <String>['${best['tag']}'],
       },
-    );
+    });
     final List<dynamic> cands =
         (sug['candidates'] as List<dynamic>?) ?? const <dynamic>[];
     if (cands.isEmpty) return null;

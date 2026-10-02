@@ -350,9 +350,11 @@ class SafetyFirewall {
 
   /// Applies masks right-to-left so earlier offsets stay valid.
   static String applyMasks(String text, List<Redaction> hits) {
-    final out = text;
+    // var, not final: String.replaceRange returns a new string, so assigning to
+    // a final would silently discard every mask.
+    var out = text;
     for (final h in hits.reversed) {
-      out.replaceRange(h.start, h.end, h.mask);
+      out = out.replaceRange(h.start, h.end, h.mask);
     }
     return out;
   }

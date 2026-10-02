@@ -347,7 +347,8 @@ class AdapterConfig {
     if (kind.trim().isEmpty) problems.add('kind is required');
     // file:// is legal: the Sandbox Lab (B6) drives a local fixture so the
     // whole orchestrator can be tested with no accounts and no quota.
-    final bool urlOk = homeUrl.startsWith('http') ||
+    final bool urlOk =
+        homeUrl.startsWith('http') ||
         homeUrl.startsWith('file://') ||
         homeUrl.startsWith('about:');
     if (!urlOk) {

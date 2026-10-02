@@ -326,13 +326,20 @@ class PromptCompiler {
       }
     }
 
-    if (strategy == ContextStrategy.delta && relayed.isEmpty) {
+    // Never dispatch an agent blind without saying so. Applies to every
+    // strategy that relayed nothing, not just delta.
+    if (relayed.isEmpty && history.isNotEmpty) {
       out
         ..writeln()
-        ..writeln(
-          'No new council messages for you this round. The brief '
-          'above is current.',
-        );
+        ..writeln(switch (strategy) {
+          ContextStrategy.scratchpad =>
+            'This is a scratchpad round: no transcript was sent to you. The '
+                'brief above is the whole of your context.',
+          ContextStrategy.delta =>
+            'No new council messages for you this round. The brief above is '
+                'current.',
+          _ => 'No council messages were relayed to you this round.',
+        });
     }
 
     var body = out.toString().trimRight();
