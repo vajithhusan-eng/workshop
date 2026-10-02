@@ -464,7 +464,7 @@ void main() {
       );
       final o = councilOf(<FakeAgent>[gpt], leader: 'chatgpt');
 
-      o.run("go");
+      final Future<CouncilOutcome> fut = o.run('go');
       o.interrupt();
       final outcome = await fut;
 
