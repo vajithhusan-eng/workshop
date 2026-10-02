@@ -8,6 +8,9 @@ import '../logging.dart';
 /// either a BudgetStop (a hard limit) or a ConvergenceStop (the council is
 /// actually done). There is no third option, so a session always terminates.
 enum BudgetStop {
+  /// The leader emitted a `decide` block with status "solved". This is the
+  /// only stop that means the council actually reached an answer.
+  solved,
   roundCap,
   timeBudget,
   inviteCap,
@@ -17,6 +20,7 @@ enum BudgetStop {
   fatalError;
 
   String get label => switch (this) {
+    BudgetStop.solved => 'Solved',
     BudgetStop.roundCap => 'round cap reached',
     BudgetStop.timeBudget => 'time budget exhausted',
     BudgetStop.inviteCap => 'too many invites this round',
