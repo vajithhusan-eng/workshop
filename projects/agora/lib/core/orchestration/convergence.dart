@@ -39,6 +39,7 @@ class ConvergencePoint {
     required this.agreement,
     required this.answered,
     required this.satisfiedFraction,
+    required this.crossRound,
   });
 
   final int round;
@@ -54,6 +55,11 @@ class ConvergencePoint {
 
   final int answered;
   final double satisfiedFraction;
+
+  /// False for round 1, whose [similarity] is the round's own internal
+  /// agreement rather than a movement measurement. Stagnation counting ignores
+  /// non-crossRound points, otherwise round 1 can fake a stagnant council.
+  final bool crossRound;
 
   @override
   String toString() =>
@@ -134,7 +140,10 @@ class ConvergenceScorer {
 
   int get length => _points.length;
 
-  void reset() => _points.clear();
+  void reset() {
+    _points.clear();
+    _previousText = null;
+  }
 
   /// Record a completed round.
   ///
@@ -160,12 +169,17 @@ class ConvergenceScorer {
     final agreement = _meanPairwiseSimilarity(answers);
     final previous = _points.isEmpty ? null : _points.last;
 
-    // Similarity is computed against the PREVIOUS round's answers when we have
-    // them; otherwise against the round's own internal agreement, so the graph
-    // still starts at a meaningful value.
-    final similarity = previous == null
-        ? agreement
-        : _crossRoundSimilarity(previous, answers);
+    // Similarity is measured against the PREVIOUS round's answers, so it says
+    // something about MOVEMENT. Round 1 has no previous round, so it falls back
+    // to the round's own internal agreement, which keeps the graph starting at a
+    // meaningful value. _previousText is seeded EVERY round (below) - if it were
+    // only set on the cross-round path, round 2 would compare against itself and
+    // always score 1.0.
+    final joined = answers.values.join('\n');
+    final prevText = _previousText;
+    final crossRound = previous != null && prevText != null;
+    final sim = crossRound ? similarity(prevText, joined) : agreement;
+    _previousText = joined;
 
     final scores = verdicts.map((v) => v.score).toList();
     final confs = verdicts.map((v) => v.confidence).toList();
@@ -175,7 +189,7 @@ class ConvergenceScorer {
 
     final point = ConvergencePoint(
       round: round,
-      similarity: similarity,
+      similarity: sim,
       meanScore: scores.isEmpty
           ? 0
           : scores.reduce((a, b) => a + b) / scores.length,
@@ -185,6 +199,7 @@ class ConvergenceScorer {
       agreement: agreement,
       answered: answers.length,
       satisfiedFraction: satisfied,
+      crossRound: crossRound,
     );
     _points.add(point);
 
@@ -199,6 +214,7 @@ class ConvergenceScorer {
     // Count consecutive stagnant rounds at the tail of the series.
     var stagnant = 0;
     for (var i = _points.length - 1; i >= 0; i--) {
+      if (!_points[i].crossRound) break; // round 1 is not a movement sample
       if (_points[i].similarity >= stagnationThreshold) {
         stagnant++;
       } else {
@@ -237,14 +253,21 @@ class ConvergenceScorer {
         satisfied >= satisfiedFractionNeeded &&
         verdicts.every((v) => v.confidence >= 0.5);
     final textsAgree = _points.last.agreement >= convergeThreshold;
+    // Agreement alone is not settledness. If the answer MOVED since the last
+    // round the council has not converged, it has just turned a corner — a
+    // council that flips its conclusion and everyone agrees on the new one is
+    // still in progress, not done.
+    final settled =
+        _points.last.crossRound && _points.last.similarity >= convergeThreshold;
 
-    if (enoughVotes && textsAgree) {
+    if (enoughVotes && textsAgree && settled) {
       return ConvergenceReport(
         state: ConvergenceState.converged,
         reason:
-            '${(satisfied * 100).round()}% of the council is satisfied and '
-            'their answers agree (${_points.last.agreement.toStringAsFixed(2)} '
-            '>= $convergeThreshold)',
+            '${(satisfied * 100).round()}% of the council is satisfied, they '
+            'agree (${_points.last.agreement.toStringAsFixed(2)} '
+            '>= $convergeThreshold) and the answer has stopped moving '
+            '(${_points.last.similarity.toStringAsFixed(2)})',
         points: _points,
         latest: _points.last,
         verdicts: verdicts,
@@ -259,6 +282,10 @@ class ConvergenceScorer {
       if (!textsAgree)
         'answers still disagree (${_points.last.agreement.toStringAsFixed(2)} '
             '< $convergeThreshold)',
+      if (textsAgree && !settled)
+        'the answer moved since last round '
+            '(${_points.last.similarity.toStringAsFixed(2)} '
+            '< $convergeThreshold) — the council is still converging',
     ];
     log.d('round $round not converged: ${why.join(', ')}');
 
@@ -276,11 +303,10 @@ class ConvergenceScorer {
 
   static final RegExp _wordSplit = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
 
-  static List<String> _tokens(String text) => _wordSplit
-      .allMatches(text.toLowerCase())
-      .map((m) => m.group(0)!)
-      .where((t) => t.isNotEmpty)
-      .toList();
+  /// Split (NOT allMatches) on the separator pattern: split yields the words
+  /// BETWEEN separators, which is what we actually compare.
+  static List<String> _tokens(String text) =>
+      text.toLowerCase().split(_wordSplit).where((t) => t.isNotEmpty).toList();
 
   /// Jaccard similarity over word sets, with a guard for tiny answers.
   static double similarity(String a, String b) {
@@ -318,16 +344,6 @@ class ConvergenceScorer {
   /// We compare the round's aggregate fingerprint against the previous point's.
   /// Since we only persist numbers, we store the previous round's joined text
   /// transiently on the point via [ConvergencePoint.similarity]'s sibling.
-  double _crossRoundSimilarity(
-    ConvergencePoint previous,
-    Map<String, String> answers,
-  ) {
-    final joined = answers.values.join('\n');
-    final prevJoined = _previousText ?? joined;
-    _previousText = joined;
-    return similarity(prevJoined, joined);
-  }
-
   String? _previousText;
 
   // ------------------------------------------------------------ verdicts
