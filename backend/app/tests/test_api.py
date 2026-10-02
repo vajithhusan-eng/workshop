@@ -329,6 +329,84 @@ def test_guardrail_surfaced() -> None:
         )
 
 
+def test_execution_api() -> None:
+    """The execution audit must never report zero cost for what it cannot measure."""
+    print("\n[execution forensics]")
+
+    st, body = call("GET", "/api/execution/cite")
+    check("cite 200", st == 200, f"status={st}")
+    check("cite names the source", "Barber" in json.dumps(body), "")
+    check("cite separates measured from modelled",
+          body.get("measured") is not None and body.get("modelled") is not None, f"{body}")
+    check("cite states what we refuse to say",
+          len(body.get("what_we_refuse_to_say", [])) >= 2, f"{body}")
+
+    # A marketable limit that filled at the mid: zero cost, still AGGRESSIVE.
+    st, body = call("POST", "/api/execution/classify", {
+        "order": {"symbol": "AAA", "side": "buy", "order_type": "limit",
+                  "limit_price": 101.0, "fill_price": 100.1,
+                  "reference_price": 100.0, "bid": 100.0, "ask": 100.2},
+    })
+    check("classify 200", st == 200, f"status={st} {body}")
+    check("classify => AGGRESSIVE", body.get("verdict") == "AGGRESSIVE", f"{body}")
+    check("classify cost 0 at the mid", abs(body.get("cost_bps", -1)) < 1e-3, f"{body}")
+    check("classify returns a reason", len(body.get("reason", "")) > 20, f"{body}")
+
+    # No reference price at all -> must NOT be reported as passive/cheap.
+    st, body = call("POST", "/api/execution/classify",
+                    {"order": {"symbol": "AAA", "side": "buy", "fill_price": 100.0}})
+    check("unmeasurable => NEUTRAL", body.get("verdict") == "NEUTRAL", f"{body}")
+    check("unmeasurable => basis unavailable", body.get("basis") == "unavailable", f"{body}")
+
+    # An empty audit is handled, not a crash.
+    st, body = call("POST", "/api/execution/audit", {"orders": []})
+    check("empty audit 200", st == 200, f"status={st} {body}")
+    check("empty audit => n_orders 0", body.get("n_orders") == 0, f"{body}")
+
+    # A real impatient account.
+    orders = [{"symbol": "AAA", "side": "buy", "order_type": "limit",
+               "fill_price": 100.5, "reference_price": 100.0}] * 6
+    orders += [{"symbol": "BBB", "side": "buy", "order_type": "limit",
+                "fill_price": 100.0, "reference_price": 100.0}] * 3
+    st, body = call("POST", "/api/execution/audit",
+                    {"orders": orders, "portfolio_value": 500000,
+                     "orders_per_year": 250})
+    check("audit 200", st == 200, f"status={st} {body}")
+    check("audit => IMPATIENT", body.get("verdict") == "IMPATIENT", f"{body.get('verdict')}")
+    # 6 aggressive + 3 passive out of 9 orders.
+    check(
+        "audit share is 6/9",
+        abs(body.get("aggressive_share", 0) - (6 / 9)) < 1e-3,
+        f"{body.get('aggressive_share')}",
+    )
+    # 50bps a fill on a 250-order year is ruinous, and the engine says so
+    # rather than quietly shrinking it. This is the honest answer.
+    check(
+        "audit does not soften an absurd drag",
+        body.get("annualised_drag_bps", 0) > 10_000,
+        f"{body.get('annualised_drag_bps')}",
+    )
+    check("audit reports rupees", (body.get("annualised_drag_rupees") or 0) > 0, f"{body}")
+    check("audit does not assume order count",
+          body.get("annualisation_assumed") is False, f"{body}")
+    check("audit returns a countermodel",
+          isinstance(body.get("countermodel"), dict), f"{body}")
+    check("countermodel carries a caveat",
+          len(body["countermodel"].get("caveat", "")) > 30, f"{body['countermodel']}")
+
+    # Unknown fields are rejected, not silently dropped.
+    st, _ = call("POST", "/api/execution/audit",
+                 {"orders": [], "portfolio_valu": 5})
+    check("unknown field => 422", st == 422, f"status={st}")
+
+    # Out-of-range fill probability.
+    st, body = call("POST", "/api/execution/audit",
+                    {"orders": orders, "fill_probability": 0.0})
+    check("fill_probability 0 => 422", st == 422, f"status={st} {body}")
+    st, _ = call("POST", "/api/execution/audit",
+                 {"orders": orders, "fill_probability": 2.0})
+    check("fill_probability 2 => 422", st == 422, f"status={st}")
+
 def main() -> int:
     print("=" * 68)
     print("OMNIVEST API smoke test")
@@ -347,6 +425,7 @@ def main() -> int:
         test_content_endpoints,
         test_write_paths,
         test_guardrail_surfaced,
+    test_execution_api,
     ):
         fn()
     print("\n" + "=" * 68)

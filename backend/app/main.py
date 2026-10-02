@@ -15,6 +15,7 @@ from .data_seed import (
 )
 from .guardrails import check_output, brief_disclaimer, ADVISER_MODE
 from .forensics import autopsy, momentum_crash_risk, pbo_cscv
+from .execution import audit_orders, classify_order
 from .watchloop import RULES, detect
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "omnivest_journal.json")
@@ -432,6 +433,95 @@ def forensics_cite():
         },
         "disclaimer": "Implementation, not a legal or investment opinion. "
         "Every number is reproducible from the inputs.",
+    }
+
+
+# ---------- execution forensics ----------
+# Barber & Odean put the bulk of retail underperformance on order handling, not
+# stock picking. The journal's `aggressive` flag is a self-report, and nobody can
+# self-assess this -- so it is derived from the fills instead.
+
+
+class ExecutionReq(BaseModel):
+    """A set of executions. Every field is optional except symbol and side,
+    because a real broker export will have some of them and not others.
+
+    What we do NOT do is default a missing reference price to the fill price.
+    That would report every order as cost-free, which is the one conclusion
+    this endpoint must never reach.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    orders: list[dict] = []
+    portfolio_value: float | None = None
+    orders_per_year: float | None = None
+    fill_probability: float = 0.30
+
+
+class ClassifyReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    order: dict
+
+
+@app.post("/api/execution/audit")
+def execution_audit(req: ExecutionReq):
+    try:
+        return audit_orders(
+            req.orders,
+            portfolio_value=req.portfolio_value,
+            orders_per_year=req.orders_per_year,
+            fill_probability=req.fill_probability,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/execution/classify")
+def execution_classify(req: ClassifyReq):
+    v = classify_order(req.order)
+    return {
+        "symbol": v.symbol,
+        "verdict": v.verdict,
+        "score": round(v.score, 3),
+        "cost_bps": round(v.cost_bps, 2),
+        "basis": v.basis,
+        "reason": v.reason,
+    }
+
+
+@app.get("/api/execution/cite")
+def execution_cite():
+    return {
+        "why_this_exists": (
+            "Barber & Odean found the bulk of individual investor losses were "
+            "attributable to aggressive orders rather than bad stock picks. "
+            "Most retail execution audits start and end at 'you traded a lot'. "
+            "This one prices the impatience."
+        ),
+        "source": "Barber, Lee & Odean, 'Trading Is Hazardous to Your Wealth', "
+        "J. Finance 55(2), 2000; 'The Behavior of Individual Investors', "
+        "RFS 15(2), 2002",
+        "measured": {
+            "claim": "Crossing cost in bps per fill, from your own fills",
+            "assumptions": "None beyond the reference price you supply",
+        },
+        "modelled": {
+            "claim": "passive_countermodel() -- what a patient book would have cost",
+            "assumptions": "Fill probability is a parameter you set, not an "
+            "estimate we make. Trades that would not have filled are NOT "
+            "netted out, because whether they would have won is unknowable.",
+            "verdict": "Treat as an upper bound on the cost of impatience, "
+            "never as a return you forgone.",
+        },
+        "what_we_refuse_to_say": [
+            "A cost of zero for an order we could not measure. Missing data is "
+            "not evidence of patience.",
+            "A profit from trading less. That number requires return data you "
+            "have not given us.",
+        ],
+        "disclaimer": "Execution analytics only. Not investment advice.",
     }
 
 

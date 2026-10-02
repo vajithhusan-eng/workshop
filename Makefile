@@ -34,6 +34,8 @@ test: test-unit test-api
 test-unit:
 	@echo "── forensics math ──"
 	cd backend && ./.venv/bin/python -m app.tests.test_forensics
+	@echo "── execution forensics ──"
+	cd backend && ./.venv/bin/python -m app.tests.test_execution
 
 # End-to-end over HTTP. Needs the backend up.
 test-api:
