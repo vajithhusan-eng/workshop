@@ -209,8 +209,8 @@ class WebAgentAdapter implements AgentAdapter {
   @override
   Future<void> newChat() async {
     _log.i('starting a new chat');
-    if (config.newChatUrl != null && config.newChatUrl!.isNotEmpty) {
-      await _navigate(config.newChatUrl!);
+    if (config.newChatUrl.isNotEmpty) {
+      await _navigate(config.newChatUrl);
     } else if (config.newChatButton.isNotEmpty) {
       final Map<String, dynamic> r = await _eval('click', <String, dynamic>{
         'spec': config.newChatButton.toJson(),
@@ -653,7 +653,7 @@ class WebAgentAdapter implements AgentAdapter {
     }
     final Object? result = res['result'];
     if (result is Map) {
-      final Object? value = (result as Map)['value'];
+      final Object? value = result['value'];
       if (value is Map) return value.cast<String, dynamic>();
       return <String, dynamic>{'value': value};
     }
@@ -662,12 +662,13 @@ class WebAgentAdapter implements AgentAdapter {
 
   String _exceptionText(Object? details) {
     try {
-      final Map<String, dynamic> m = (details as Map).cast<String, dynamic>();
+      if (details is! Map) return '$details';
+      final Map<String, dynamic> m = details.cast<String, dynamic>();
       final Object? ex = m['exception'];
       if (ex is Map) {
-        final Object? desc = (ex as Map)['description'];
+        final Object? desc = ex['description'];
         if (desc != null) return '$desc'.split('\n').first;
-        return '${(ex as Map)['value']}';
+        return '${ex['value']}';
       }
       return '${m['text']}';
     } catch (_) {

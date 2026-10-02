@@ -281,8 +281,12 @@ class Orchestrator {
     for (final s in seats) s.kind: s,
   };
 
+  /// `sync: true` matters. With the default async broadcast, an event emitted
+  /// mid-loop is delivered in a later microtask, so a listener can observe
+  /// events that arrive *after* run() has already returned. Sync delivery also
+  /// keeps the UI in step with the orchestrator's awaits.
   final StreamController<CouncilEvent> _events =
-      StreamController<CouncilEvent>.broadcast();
+      StreamController<CouncilEvent>.broadcast(sync: true);
   Stream<CouncilEvent> get events => _events.stream;
 
   OrchestratorPhase _phase = OrchestratorPhase.idle;
@@ -416,7 +420,17 @@ class Orchestrator {
         roundSpeakers: () => roundSpeakers,
       );
       if (leaderReply == null) {
-        return _failure(round, 'the leader never answered');
+        if (budget.sentToday(_leaderKind) > budget.dailyMessageCap) {
+          return _finish(
+            BudgetStop.dailyMessageCap,
+            'daily message cap (${budget.dailyMessageCap}) reached for '
+            '${_leaderSeat.displayName}',
+          );
+        }
+        log.w(
+          'round $round: the leader did not answer; trying again next round',
+        );
+        continue;
       }
       lastSeen[_leaderKind] = round;
       _openQuestion = CouncilProtocol.proseOf(leaderReply.rawText);
@@ -491,14 +505,6 @@ class Orchestrator {
           );
           if (!budget.reserveInvite()) {
             log.w('round $round: invite cap reached, ignoring further invites');
-          } else if (!budget.reserveMessage(target.kind)) {
-            _emit(
-              ProtocolWarning(
-                round,
-                'daily message cap reached for ${target.displayName} — skipped',
-              ),
-              round,
-            );
           } else {
             _setPhase(OrchestratorPhase.dispatching, round, target.displayName);
             final packet = _packetFor(
@@ -519,7 +525,11 @@ class Orchestrator {
               roundSpeakers: () => roundSpeakers,
             );
             if (reply == null) {
-              return _failure(round, '${target.displayName} never answered');
+              log.w(
+                'round $round: ${target.displayName} never answered; '
+                'the leader decides without them',
+              );
+              continue;
             }
             lastSeen[target.kind] = round;
             _relayGuard(reply.rawText, target.kind);
@@ -559,6 +569,20 @@ class Orchestrator {
     required Map<String, String> roundAnswers,
     required List<String> Function() roundSpeakers,
   }) async {
+    // Count EVERY send against the daily cap, leader included. Reserving only
+    // in the invite branch let the leader send without limit.
+    if (!budget.reserveMessage(seat.kind)) {
+      _emit(
+        ProtocolWarning(
+          round,
+          'daily message cap (${budget.dailyMessageCap}) reached for '
+          '${seat.displayName} — not sending',
+        ),
+        round,
+      );
+      return null;
+    }
+
     _setPhase(OrchestratorPhase.awaiting, round, seat.displayName);
     try {
       await seat.adapter.send(packet.body);
@@ -747,12 +771,6 @@ class Orchestrator {
       '${convergenceReason == null ? '' : ' ($convergenceReason)'}',
     );
     return outcome;
-  }
-
-  CouncilOutcome _failure(int round, String why) {
-    _setPhase(OrchestratorPhase.failed, round, why);
-    _emit(CouncilFailed(round, why), round);
-    return _outcomeFor(BudgetStop.fatalError, reason: why);
   }
 
   void _emit(CouncilEvent event, int round) {

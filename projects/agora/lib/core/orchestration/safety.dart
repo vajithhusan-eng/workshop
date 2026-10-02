@@ -274,8 +274,9 @@ class SafetyFirewall {
     ),
     (
       RegExp(
-        r'\b(?:send|post|upload|exfiltrate|forward|transmit|leak)\b[^.\n]{0,40}'
-        r'\b(?:to|at)\b[^.\n]{0,30}'
+        r'\b(?:send|post|upload|exfiltrate|forward|transmit|leak|email|mail'
+        r'|dm|cc|paste|share|publish)\b[^.\n]{0,40}'
+        r'\b(?:to|at|into|towards?)\b[^.\n]{0,30}'
         r'(?:https?://|[\w.-]+@[\w.-]+)',
         caseSensitive: false,
       ),

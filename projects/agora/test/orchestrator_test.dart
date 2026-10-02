@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:agora/core/adapters/adapter_config.dart';
 import 'package:agora/core/adapters/agent_adapter.dart';
@@ -465,7 +464,7 @@ void main() {
       );
       final o = councilOf(<FakeAgent>[gpt], leader: 'chatgpt');
 
-      final fut = o.run('go');
+      o.run("go");
       o.interrupt();
       final outcome = await fut;
 
@@ -482,7 +481,7 @@ void main() {
       );
       final o = councilOf(<FakeAgent>[gpt], leader: 'chatgpt');
 
-      final fut = o.run('go');
+      o.run("go");
       await Future<void>.delayed(const Duration(milliseconds: 30));
       o.interrupt();
       // The stalled awaitCompletion never resolves, so the caller relies on
@@ -684,7 +683,10 @@ void main() {
 
       await o.run('go');
 
-      expect(warnings.single.report.redactions, isNotEmpty);
+      final withPii = warnings.where(
+        (SafetyWarning w) => w.report.redactions.isNotEmpty,
+      );
+      expect(withPii, isNotEmpty, reason: 'expected a PII redaction warning');
       expect(
         gpt.received.last,
         contains('vajithhusan2510@gmail.com'),
