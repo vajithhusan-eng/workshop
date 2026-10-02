@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:agora/core/adapters/adapter_config.dart';
 import 'package:agora/core/adapters/agent_adapter.dart';
 import 'package:agora/core/orchestration/budget.dart';
 import 'package:agora/core/orchestration/convergence.dart';
 import 'package:agora/core/orchestration/orchestrator.dart';
 import 'package:agora/core/orchestration/prompt_compiler.dart';
+import 'package:agora/core/orchestration/safety.dart';
 import 'package:agora/core/util/hashing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -33,7 +35,7 @@ class FakeAgent implements AgentAdapter {
   bool stallForever;
 
   final List<String> received = <String>[];
-  AgentStatus _status = const AgentStatus(phase: AgentPhase.ready);
+  AgentStatus _status = const AgentStatus(AgentPhase.ready);
   final StreamController<AgentStatus> _statuses =
       StreamController<AgentStatus>.broadcast();
   final StreamController<String> _tokens = StreamController<String>.broadcast();
@@ -52,7 +54,11 @@ class FakeAgent implements AgentAdapter {
   String get targetId => 'fake-$kind';
 
   @override
-  String get config => 'fake';
+  AdapterConfig get config => AdapterConfig(
+    kind: kind,
+    homeUrl: 'https://fake.invalid/',
+    displayName: displayName,
+  );
 
   @override
   Future<LoginState> connect() async => LoginState.ready;
@@ -122,7 +128,7 @@ String invite(String agent, String task, {String? context, String? expect}) =>
 String decide(String answer, {double confidence = 0.85, String? dissent}) =>
     'Final answer below.\n\n```council\n'
     '{"action":"decide","status":"solved","answer":"$answer",'
-    '"confidence":$confidence${dissent == null ? '' : ',"dissent":["$dissent"]'}}\n}'
+    '"confidence":$confidence${dissent == null ? '' : ',"dissent":["$dissent"]'}}\n'
     '```';
 
 String verdict(double score, double confidence) =>
@@ -388,7 +394,11 @@ void main() {
 
       final outcome = await o.run('go');
 
-      expect(outcome.rounds, 4);
+      expect(
+        outcome.rounds,
+        3,
+        reason: 'three rounds ran; the 4th was refused by the cap',
+      );
       expect(outcome.stop, BudgetStop.roundCap);
       expect(outcome.answer, isNull);
     });
