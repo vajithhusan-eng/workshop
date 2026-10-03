@@ -81,21 +81,33 @@ class JournalEntry(BaseModel):
 
 
 class Note(BaseModel):
+    # extra="forbid" everywhere, for the reason on JournalEntry. A forensics
+    # client that misspells `sharpe` gets a plausible REJECT verdict computed
+    # from the defaults instead — which is worse than an error, because the
+    # number looks real and the user cannot see that nothing they sent landed.
+    model_config = ConfigDict(extra="forbid")
+
     text: str
     symbol: str = ""
     horizon_months: int = 12
 
 
 class Rule(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     text: str
 
 
 class ExtractReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     title: str = "Untitled"
     text: str
 
 
 class BriefReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     events: list[dict] = []
     name: str = "Investor"
 
@@ -105,11 +117,18 @@ class AutopsyReq(BaseModel):
 
     Defaults are deliberately set to a *typical retail factor* rather than a
     flattering one: most signals the app gets handed should not survive.
+
+    Field names mirror `forensics.autopsy()` exactly. They are not synonyms
+    chosen for taste: an API and its engine that call the same idea `name` and
+    `technique` will eventually drift, and a drift in *this* endpoint produces
+    a confident verdict about the wrong signal.
     """
 
-    name: str = "Momentum 12-1"
-    sharpe: float = 0.68
-    trials: int = 47
+    model_config = ConfigDict(extra="forbid")
+
+    technique: str = "Momentum 12-1"
+    sharpe_ratio: float = 0.68
+    n_trials: int = 47
     # Observations behind the backtest. 3y of daily bars is the usual claim.
     n_obs: int = 756
     backtest_excess_bps: int = 309
@@ -132,6 +151,8 @@ class PboReq(BaseModel):
     question, not a PBO question.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     name: str = "screen"
     returns_matrix: list[list[float]]
     n_splits: int = 8
@@ -139,6 +160,8 @@ class PboReq(BaseModel):
 
 
 class AskReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     question: str
     context: str = ""
 
@@ -387,9 +410,9 @@ def brief(req: BriefReq):
 @app.post("/api/forensics/autopsy")
 def forensics(req: AutopsyReq):
     return autopsy(
-        req.name,
-        sharpe_ratio=req.sharpe,
-        n_trials=req.trials,
+        req.technique,
+        sharpe_ratio=req.sharpe_ratio,
+        n_trials=req.n_trials,
         n_obs=req.n_obs,
         backtest_excess_bps=req.backtest_excess_bps,
         live_excess_bps=req.live_excess_bps,

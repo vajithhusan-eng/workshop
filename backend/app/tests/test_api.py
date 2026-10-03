@@ -79,9 +79,9 @@ def test_forensics_api() -> None:
         "POST",
         "/api/forensics/autopsy",
         {
-            "name": "Typical Retail Factor",
-            "sharpe": 0.9,
-            "trials": 200,
+            "technique": "Typical Retail Factor",
+            "sharpe_ratio": 0.9,
+            "n_trials": 200,
             "n_obs": 756,
             "backtest_excess_bps": 800,
             "live_excess_bps": 700,
@@ -102,9 +102,9 @@ def test_forensics_api() -> None:
         "POST",
         "/api/forensics/autopsy",
         {
-            "name": "T",
-            "sharpe": 1.0,
-            "trials": 10,
+            "technique": "T",
+            "sharpe_ratio": 1.0,
+            "n_trials": 10,
             "n_obs": 1000,
             "backtest_excess_bps": 500,
             "live_excess_bps": 480,
@@ -115,9 +115,9 @@ def test_forensics_api() -> None:
         "POST",
         "/api/forensics/autopsy",
         {
-            "name": "T",
-            "sharpe": 1.0,
-            "trials": 10,
+            "technique": "T",
+            "sharpe_ratio": 1.0,
+            "n_trials": 10,
             "n_obs": 1000,
             "backtest_excess_bps": 500,
             "live_excess_bps": 480,
@@ -136,6 +136,84 @@ def test_forensics_api() -> None:
     check(
         "autopsy works with bare defaults", status == 200, f"{status} {str(body)[:160]}"
     )
+
+
+def test_no_silent_drops() -> None:
+    """A client that misspells a field must get a 422, never a default.
+
+    This exists because it already happened. A caller sent
+    `technique`/`sharpe_ratio`/`n_trials` to an endpoint expecting
+    `name`/`sharpe`/`trials`; pydantic ignored the extras and the server
+    cheerfully autopsied *Momentum 12-1 at the default numbers*. The response
+    was a confident, well-formatted REJECT verdict about a signal nobody asked
+    about. That is the worst class of API bug: no error anywhere, and the
+    output looks authoritative.
+    """
+    print("\n[no silent field drops]")
+
+    # 1. the sent values must be echoed back in the result
+    status, body = call(
+        "POST",
+        "/api/forensics/autopsy",
+        {
+            "technique": "My Actual Signal",
+            "sharpe_ratio": 0.4,
+            "n_trials": 7,
+            "n_obs": 2000,
+            "backtest_excess_bps": 400,
+            "live_excess_bps": 300,
+        },
+    )
+    check("autopsy echoes the technique", status == 200, f"{status} {str(body)[:160]}")
+    if status == 200:
+        check(
+            "the name sent is the name judged",
+            body["technique"] == "My Actual Signal",
+            f"got {body['technique']!r}",
+        )
+        check(
+            "the trial count sent is the trial count used",
+            body["deflated_sharpe"]["n_trials"] == 7,
+            f"got {body['deflated_sharpe']['n_trials']}",
+        )
+        check(
+            "the observations sent are the observations used",
+            body["deflated_sharpe"]["n_obs"] == 2000,
+            f"got {body['deflated_sharpe']['n_obs']}",
+        )
+
+    # 2. every request model must reject unknown fields
+    #    (each payload contains ONE wrong field and otherwise-valid ones)
+    for path, payload in (
+        (
+            "/api/forensics/autopsy",
+            {"technique": "x", "sharpe_ration": 0.9},  # note the typo
+        ),
+        ("/api/notes", {"text": "hi", "sembol": "TCS"}),
+        ("/api/rules", {"text": "no leverage", "severity": "hard"}),
+        ("/api/ask", {"question": "why?", "contex": "none"}),
+        (
+            "/api/forensics/pbo",
+            {"returns_matrix": [[0.01, 0.02], [0.02, 0.01]], "n_split": 8},
+        ),
+        ("/api/watch/detect", {"events": [], "as_of": "2026-10-03", "circule": []}),
+        ("/api/journal/entries", {"symbol": "TCS", "why": "moat", "qtyy": 10}),
+        ("/api/books/extract", {"title": "t", "text": "x", "author": "y"}),
+        ("/api/brief/daily", {"name": "x", "evnets": []}),
+    ):
+        status, _ = call("POST", path, payload)
+        check(
+            f"{path} rejects an unknown field",
+            status == 422,
+            f"got {status}, expected 422 — an unknown field is being ignored",
+        )
+
+    # 3. and the deliberate spelling must still work, so we are not just
+    #    rejecting everything
+    status, _ = call(
+        "POST", "/api/forensics/autopsy", {"technique": "ok", "sharpe_ratio": 0.5}
+    )
+    check("autopsy still accepts correct fields", status == 200, f"got {status}")
 
 
 def test_pbo_api() -> None:
@@ -574,6 +652,7 @@ def main() -> int:
     for fn in (
         test_reachable,
         test_forensics_api,
+        test_no_silent_drops,
         test_pbo_api,
         test_crowding_api,
         test_citations,
