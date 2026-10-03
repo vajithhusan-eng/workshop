@@ -1,0 +1,5 @@
+#!/bin/sh
+# AppImage entrypoint. The Flutter bundle sits at the AppDir root; the runner's
+# RPATH is $ORIGIN/lib so the bundled .so files resolve without LD_LIBRARY_PATH.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/agora" "$@"

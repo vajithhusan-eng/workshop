@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Agora
+GenericName=Multi-AI Council Orchestrator
+Comment=Convene real AI websites into a council that debates until the problem is solved.
+Exec=agora
+Icon=agora
+Terminal=false
+Categories=Development;Utility;Education;
+Keywords=ai;council;chatgpt;gemini;deepseek;orchestration;debate;
+StartupWMClass=agora
+X-AppImage-Name=Agora
+X-AppImage-Version=1

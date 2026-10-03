@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.agora.agora</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>Agora</name>
+  <summary>Convene real AI websites into a council that debates until the problem is solved.</summary>
+  <description>
+    <p>
+      Agora is a multi-AI council orchestrator for the desktop. You state a
+      problem once. A leader AI you choose decomposes it and invites other AIs
+      into a real debate; they critique and revise until the leader declares it
+      solved.
+    </p>
+    <p>
+      Every agent runs in a real Chrome tab driven over the Chrome DevTools
+      Protocol, using the login you already have. Nothing is proxied through a
+      server and no telemetry is collected.
+    </p>
+    <p>
+      Every agent's words are stored verbatim, with a hash that is re-checked on
+      read. Agora never rewrites or summarises what an agent said.
+    </p>
+  </description>
+  <launchable type="desktop-id">agora.desktop</launchable>
+  <categories>
+    <category>Development</category>
+    <category>Utility</category>
+  </categories>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-03"/>
+  </releases>
+</component>
