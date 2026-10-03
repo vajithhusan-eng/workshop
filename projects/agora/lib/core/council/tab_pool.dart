@@ -67,6 +67,16 @@ class TabPool {
 
   final Map<String, String> _sessions = <String, String>{};
 
+  /// The attached page session for an open kind, or null when that tab is not
+  /// open. Public because the Calibration Studio probes a page with its own
+  /// read-only queries and must reuse the pool's cached session — a second
+  /// attach to the same target is exactly the churn that breaks adapters.
+  Future<String?> sessionFor(String kind) async {
+    final targetId = _targets[kind];
+    if (targetId == null) return null;
+    return _sessionFor(targetId);
+  }
+
   /// Sessions are cached per target for the pool's own calls. The sandbox
   /// proved that attach/detach churn invalidates another adapter's flattened
   /// session ("Session with given id not found"), so we attach once and keep it
