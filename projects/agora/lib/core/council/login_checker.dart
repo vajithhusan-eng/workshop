@@ -3,8 +3,8 @@ import 'package:agora/core/adapters/agent_adapter.dart';
 import 'package:agora/core/adapters/web_agent_adapter.dart';
 import 'package:agora/core/chrome/chrome_launcher.dart';
 import 'package:agora/core/logging.dart';
-import 'package:flutter/services.dart' show rootBundle;
 
+import 'adapter_loader.dart';
 import 'tab_pool.dart';
 
 /// One site's sign-in state, with enough detail for a first-run wizard to tell
@@ -48,7 +48,15 @@ class LoginCheck {
 /// the remedy is for the user to sign in to the window that is already on the
 /// screen, not for Agora to close it and open another. `dispose()` cleans up.
 class LoginChecker {
-  LoginChecker({this.cdpPort = 9222, this.headless = false});
+  LoginChecker({
+    required this.adapterLoader,
+    this.cdpPort = 9222,
+    this.headless = false,
+  });
+
+  /// Where adapter JSON comes from. Injected rather than imported so the
+  /// sign-in check is runnable from a command-line tool too.
+  final AdapterLoader adapterLoader;
 
   final int cdpPort;
   final bool headless;
@@ -165,7 +173,7 @@ class LoginChecker {
 
   Future<AdapterConfig?> _loadConfig(String kind) async {
     try {
-      final raw = await rootBundle.loadString('assets/adapters/$kind.json');
+      final raw = await adapterLoader(kind);
       return AdapterConfig.parse(raw, origin: 'assets/adapters/$kind.json');
     } on Object catch (e) {
       _log.w('adapter $kind is missing or unreadable', e);

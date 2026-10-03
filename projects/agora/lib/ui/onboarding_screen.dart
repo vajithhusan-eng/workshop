@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/chrome/chrome_launcher.dart';
 import '../core/adapters/agent_adapter.dart';
+import '../core/adapters/bundle_loader.dart';
 import '../core/council/login_checker.dart';
 import 'theme.dart';
 
@@ -84,7 +85,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  LoginChecker get _checkerOrCreate => _checker ??= LoginChecker(headless: false);
+  LoginChecker get _checkerOrCreate => _checker ??= LoginChecker(
+    adapterLoader: bundleAdapterLoader(),
+    headless: false,
+  );
 
   Future<void> _runCheck() async {
     setState(() {
@@ -159,20 +163,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _card(Widget child) => Container(
-        constraints: const BoxConstraints(maxWidth: 640),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AgoraTheme.surface1,
-          border: Border.all(color: AgoraTheme.hairline),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: child,
-      );
+    constraints: const BoxConstraints(maxWidth: 640),
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: AgoraTheme.surface1,
+      border: Border.all(color: AgoraTheme.hairline),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: child,
+  );
 
   Widget _welcome(BuildContext context) {
     return _Centered(
       title: 'Agora',
-      subtitle: 'A council of the AI websites you already use, arguing it out in '
+      subtitle:
+          'A council of the AI websites you already use, arguing it out in '
           'front of you — and keeping every word they said.',
       child: _card(
         Column(
@@ -215,21 +220,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _path(String label, String value) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            SizedBox(width: 120, child: Text(label, style: AgoraTheme.caption)),
-            Expanded(child: Text(value, style: AgoraTheme.mono)),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        SizedBox(width: 120, child: Text(label, style: AgoraTheme.caption)),
+        Expanded(child: Text(value, style: AgoraTheme.mono)),
+      ],
+    ),
+  );
 
   Widget _signIn(BuildContext context) {
     final rows = _checks;
     return _Centered(
       title: 'Sign in to your AI sites',
-      subtitle: 'Agora talks to the real websites in a real browser. Each one '
+      subtitle:
+          'Agora talks to the real websites in a real browser. Each one '
           'needs a sign-in in Agora\'s own Chrome window.',
       child: _card(
         Column(
@@ -325,7 +331,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _preferences(BuildContext context) {
     return _Centered(
       title: 'How Agora should behave',
-      subtitle: 'These are the three defaults the design left open. Change them '
+      subtitle:
+          'These are the three defaults the design left open. Change them '
           'now or any time in Settings.',
       child: _card(
         Column(
@@ -365,23 +372,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     String blurb, {
     required bool value,
     required ValueChanged<bool> onChanged,
-  }) =>
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title),
-                const SizedBox(height: 2),
-                Text(blurb, style: AgoraTheme.caption),
-              ],
-            ),
-          ),
-          Switch(value: value, onChanged: onChanged),
-        ],
-      );
+  }) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: <Widget>[
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(title),
+            const SizedBox(height: 2),
+            Text(blurb, style: AgoraTheme.caption),
+          ],
+        ),
+      ),
+      Switch(value: value, onChanged: onChanged),
+    ],
+  );
 
   Widget _footer(BuildContext context) {
     final isLast = _step == 2;
@@ -457,15 +463,12 @@ class _Centered extends StatelessWidget {
 }
 
 Widget _note(IconData icon, Color color, String text) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: AgoraTheme.caption.copyWith(color: color),
-          ),
-        ),
-      ],
-    );
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: <Widget>[
+    Icon(icon, size: 18, color: color),
+    const SizedBox(width: 8),
+    Expanded(
+      child: Text(text, style: AgoraTheme.caption.copyWith(color: color)),
+    ),
+  ],
+);

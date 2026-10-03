@@ -4,6 +4,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 
 import '../data/database.dart' as db;
+import '../core/adapters/bundle_loader.dart';
 import '../core/council/council_runner.dart';
 import '../data/session_repository.dart';
 
@@ -349,6 +350,7 @@ class AgoraController extends ChangeNotifier {
       repo: repo,
       sessionId: sessionId,
       kindToAgentId: kindToAgentId,
+      adapterLoader: bundleAdapterLoader(),
     );
     _runner = runner;
     notifyListeners();
