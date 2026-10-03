@@ -363,6 +363,43 @@ function agoraKernel(op, A) {
     text: function () {
       var b = doc.body;
       return {text: b ? b.innerText.slice(0, 5000) : '', url: location.href};
+    },
+
+    // Diagnostic only: report what each selector in a slot actually finds on
+    // this page right now. It reuses the same qsaDeep/visible/labels helpers the
+    // real matcher uses, so a green probe means the matcher will find it too.
+    probe: function (A) {
+      var spec = A.spec || {}, css = spec.css || [], txt = spec.text || [], out = [];
+      var i, j;
+      function sample(els) {
+        if (!els || !els.length) return '';
+        return labels(els[0]).replace(/\s+/g, ' ').trim().slice(0, 60);
+      }
+      for (i = 0; i < css.length; i++) {
+        var sel = css[i], found = [], bad = false;
+        // qsaDeep swallows a syntax error and returns [], so ask the document
+        // directly: "no match" and "not valid CSS" are different calibration bugs.
+        try { doc.querySelectorAll(sel); } catch (e) { bad = true; }
+        if (!bad) { try { found = qsaDeep(sel); } catch (e) { found = []; } }
+        var vis = [];
+        for (j = 0; j < found.length; j++) if (visible(found[j])) vis.push(found[j]);
+        out.push({selector: sel, kind: 'css', total: found.length, visible: vis.length,
+                  sample: sample(vis.length ? vis : found), invalid: bad});
+      }
+      var pool = qsaDeep(TEXT_TAGS);
+      for (i = 0; i < txt.length; i++) {
+        var needle = String(txt[i]).toLowerCase(), hits = [], nv = 0;
+        for (j = 0; j < pool.length; j++) {
+          if (!needle || labels(pool[j]).indexOf(needle) !== -1) {
+            hits.push(pool[j]);
+            if (visible(pool[j])) nv++;
+          }
+        }
+        out.push({selector: txt[i], kind: 'text', total: hits.length, visible: nv,
+                  sample: sample(hits), invalid: false});
+      }
+      return {ok:true, slot: A.slot || '', hits: out,
+              shadowRoots: shadowRoots(doc).length, url: location.href};
     }
   };
 
