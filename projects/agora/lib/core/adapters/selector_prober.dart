@@ -8,6 +8,24 @@ import 'adapter_config.dart';
 import 'page_script.dart';
 
 /// What one selector found on the live page.
+/// What kind of thing a selector points at.
+///
+/// This distinction is the difference between "your selector is stale" and
+/// "there is nothing on the page to find yet". Scoring both as a miss makes a
+/// working adapter look broken, which is worse than not probing at all.
+enum SlotKind {
+  /// A control that must be present on a loaded page.
+  element,
+
+  /// A page state. Login states are mutually exclusive by definition, so a miss
+  /// here is normal: a signed-out selector cannot match a signed-in page.
+  state,
+
+  /// Only exists once the thread holds an exchange (assistant/user bubbles, the
+  /// stop button). Undecidable on a fresh thread, so reported, never failed.
+  conditional,
+}
+
 class SelectorHit {
   const SelectorHit({
     required this.selector,
@@ -62,16 +80,29 @@ class ProbeOutcome {
     required this.slot,
     required this.spec,
     required this.hits,
+    this.kind = SlotKind.element,
+    this.error,
   });
 
   final String slot;
   final SelectorSpec spec;
+  final SlotKind kind;
   final List<SelectorHit> hits;
+
+  /// Set when the kernel could not be asked at all, as opposed to answering
+  /// "nothing here". A silent miss here would look exactly like a stale
+  /// adapter, which is the opposite of what a diagnostic tool should do.
+  final String? error;
 
   bool get isEmptySpec => spec.css.isEmpty && spec.text.isEmpty;
 
   /// Matched on at least one selector, which is what the real matcher needs.
   bool get matched => hits.any((SelectorHit h) => h.matched);
+
+  /// True only when a miss is evidence of a broken selector. A conditional slot
+  /// has nothing to match until the thread fills; a state slot is *supposed* to
+  /// lose against a page sitting in a different state.
+  bool get checkable => kind == SlotKind.element;
 
   bool get hasInvalidSelector => hits.any((SelectorHit h) => h.invalid);
 
@@ -126,27 +157,68 @@ class SiteProbe {
   final List<ProbeOutcome> outcomes;
   final String? error;
 
-  List<ProbeOutcome> get broken =>
-      outcomes.where((ProbeOutcome o) => !o.isEmptySpec && !o.matched).toList();
+  /// A selector that is declared, checkable on this page, and did not match.
+  /// State slots are excluded: they are mutually exclusive, so the ones that
+  /// lose are supposed to lose.
+  List<ProbeOutcome> get broken => outcomes
+      .where((ProbeOutcome o) => !o.isEmptySpec && o.checkable && !o.matched)
+      .toList();
+
+  /// Slots that could not be judged because the page had nothing to show. They
+  /// are reported so the user knows the check was skipped, not silently passed.
+  List<ProbeOutcome> get unverifiable => outcomes
+      .where(
+        (ProbeOutcome o) =>
+            !o.isEmptySpec && o.kind == SlotKind.conditional && !o.matched,
+      )
+      .toList();
 
   List<ProbeOutcome> get withInvalidCss =>
       outcomes.where((ProbeOutcome o) => o.hasInvalidSelector).toList();
 
+  List<ProbeOutcome> get errored =>
+      outcomes.where((ProbeOutcome o) => o.error != null).toList();
+
   int get matchedCount => outcomes.where((ProbeOutcome o) => o.matched).length;
 
   int get scoredCount =>
-      outcomes.where((ProbeOutcome o) => !o.isEmptySpec).length;
+      outcomes.where((ProbeOutcome o) => !o.isEmptySpec && o.checkable).length;
 
-  bool get allMatched => scoredCount > 0 && matchedCount == scoredCount;
+  bool get allMatched => scoredCount > 0 && broken.isEmpty && errored.isEmpty;
 
   String get headline {
     if (error != null) return error!;
+    if (errored.isNotEmpty) {
+      return '${errored.length} slot(s) could not be probed';
+    }
     if (!loaded) return 'page did not load';
     if (scoredCount == 0) return 'adapter declares no selectors to probe';
-    if (allMatched) return 'all $scoredCount slots matched';
-    return '$matchedCount of $scoredCount slots matched';
+    if (unverifiable.isNotEmpty) {
+      return '${broken.length} slot(s) broken, ${unverifiable.length} '
+          'unverifiable on an empty thread';
+    }
+    if (allMatched) return 'all $scoredCount checkable slots matched';
+    return '${broken.length} of $scoredCount checkable slots broken';
   }
 }
+
+/// How each probe slot should be scored.
+///
+/// Kept next to [probeSlotsOf] on purpose: a slot's kind and its selector are
+/// one fact about the adapter, and splitting them across two tables is how they
+/// drift apart.
+const Map<String, SlotKind> slotKinds = <String, SlotKind>{
+  'composer': SlotKind.element,
+  'send': SlotKind.element,
+  'assistant node': SlotKind.conditional,
+  'user node': SlotKind.conditional,
+  'container': SlotKind.element,
+  'stop button': SlotKind.conditional,
+  'signed in': SlotKind.state,
+  'signed out': SlotKind.state,
+  'captcha': SlotKind.state,
+  'rate limited': SlotKind.state,
+};
 
 /// The ordered set of adapter slots worth probing.
 ///
@@ -185,6 +257,24 @@ class SelectorProber {
 
   /// Probe one site. Never throws: every failure comes back inside [SiteProbe]
   /// so the Calibration Studio can render a reason next to a green checkmark.
+  /// Runtime.evaluate answers with `{"result": {"type":…, "value": …}}`; the
+  /// kernel's own object is one level deeper. A page that threw instead carries
+  /// `exceptionDetails`, which is far more useful than "no result".
+  static Map<String, dynamic> _unwrap(Map<String, dynamic> envelope) {
+    final Object? details = envelope['exceptionDetails'];
+    if (details != null) {
+      final String text = details is Map
+          ? '${(details['exception'] is Map) ? (details['exception'] as Map)['description'] ?? details['exception'] : details['text'] ?? details}'
+          : '$details';
+      return <String, dynamic>{'ok': false, 'error': text.split('\n').first};
+    }
+    final Object? remote = envelope['result'];
+    if (remote is Map && remote['value'] is Map) {
+      return (remote['value'] as Map).cast<String, dynamic>();
+    }
+    return envelope;
+  }
+
   Future<SiteProbe> probe(
     AdapterConfig cfg, {
     Duration settle = const Duration(seconds: 3),
@@ -212,7 +302,7 @@ class SelectorProber {
         cfg,
       ).entries) {
         if (e.value.css.isEmpty && e.value.text.isEmpty) continue;
-        final Map<String, dynamic> res = await _client.sendMap(
+        final Map<String, dynamic> envelope = await _client.sendMap(
           'Runtime.evaluate',
           params: <String, dynamic>{
             'expression': PageScript.call('probe', <String, dynamic>{
@@ -228,10 +318,21 @@ class SelectorProber {
           sessionId: session,
           timeout: const Duration(seconds: 20),
         );
+        // Runtime.evaluate answers with a RemoteObject envelope, so the kernel's
+        // own return value lives at result.value. Reading `envelope` directly is
+        // what made every slot report "no result" while the page was fine.
+        final Map<String, dynamic> res = _unwrap(envelope);
         if (res['ok'] != true) {
-          _log.w('probe failed on $kind/${e.key}', '${res['error']}');
+          final String why =
+              '${res['error'] ?? 'the page kernel returned no result'}';
+          _log.w('probe failed on $kind/${e.key}', why);
           outcomes.add(
-            ProbeOutcome(slot: e.key, spec: e.value, hits: <SelectorHit>[]),
+            ProbeOutcome(
+              slot: e.key,
+              spec: e.value,
+              hits: <SelectorHit>[],
+              error: why,
+            ),
           );
           continue;
         }
@@ -241,6 +342,7 @@ class SelectorProber {
           ProbeOutcome(
             slot: e.key,
             spec: e.value,
+            kind: slotKinds[e.key] ?? SlotKind.element,
             hits: <SelectorHit>[
               for (final Object? h
                   in (res['hits'] as List<Object?>? ?? const <Object?>[]))
