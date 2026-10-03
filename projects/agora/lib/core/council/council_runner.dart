@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:path/path.dart' as p;
 
 import '../adapters/adapter_config.dart';
@@ -13,6 +12,7 @@ import '../orchestration/budget.dart';
 import '../orchestration/orchestrator.dart';
 import '../util/hashing.dart';
 import '../logging.dart';
+import 'adapter_loader.dart';
 import 'tab_pool.dart';
 import '../../data/session_repository.dart';
 
@@ -47,8 +47,11 @@ class CouncilRunner {
     required this.repo,
     required this.sessionId,
     required this.kindToAgentId,
+    required this.adapterLoader,
+    this.adapterOverrides = const <String, AdapterConfig>{},
     this.cdpPort = 9222,
     this.headless = false,
+    this.profileDir,
   });
 
   final SessionRepository repo;
@@ -58,12 +61,26 @@ class CouncilRunner {
   /// under the right seat instead of a bare string.
   final Map<String, String> kindToAgentId;
 
+  /// Where adapter JSON comes from. The app passes the asset bundle; a tool
+  /// passes a directory. Never a hardcoded asset path, so the engine stays
+  /// runnable without Flutter.
+  final AdapterLoader adapterLoader;
+
+  /// Adapter kind -> a config supplied by the caller, consulted before the
+  /// loader. Empty in the app; the Sandbox Lab fixture in a harness.
+  final Map<String, AdapterConfig> adapterOverrides;
+
   final int cdpPort;
 
   /// Chrome runs visible by default (PLAN.md §17 open question 2): a real AI
   /// site may throw a captcha or expire its login, and the user has to be able
   /// to see and fix that. Headless exists for the sandbox harness.
   final bool headless;
+
+  /// Chrome's user-data-dir. Null in the app (Agora's own persistent profile,
+  /// where the user's logins live); a tool passes a throwaway directory so a
+  /// harness never contends with the running app for the same profile lock.
+  final String? profileDir;
 
   static final Logger _log = Logger('council');
 
@@ -340,16 +357,24 @@ class CouncilRunner {
   Future<ChromeLaunchResult> _launchChrome() async {
     return ChromeLauncher().launch(
       preferredPort: cdpPort,
-      profileDir: AgoraPaths.chromeProfile,
+      profileDir: profileDir ?? AgoraPaths.chromeProfile,
       headless: headless,
     );
   }
 
   /// Adapters are JSON data, never code. A site redesign is a new file in
   /// `assets/adapters/`, not a new release.
+  ///
+  /// [adapterOverrides] short-circuits the loader by kind. A harness passes the
+  /// Sandbox Lab fixture and can drive a whole council end to end without
+  /// touching `assets/`. Without this seam the runner could only ever speak to
+  /// real sites, and the sandbox could not exercise the one path that writes to
+  /// the vault.
   Future<AdapterConfig> loadAdapterConfig(String kind) async {
-    final raw = await rootBundle.loadString('assets/adapters/$kind.json');
-    final cfg = AdapterConfig.parse(raw, origin: 'assets/adapters/$kind.json');
+    final override = adapterOverrides[kind];
+    if (override != null) return override;
+    final raw = await adapterLoader(kind);
+    final cfg = AdapterConfig.parse(raw, origin: 'adapter:$kind');
     final problems = cfg.validate();
     if (problems.isNotEmpty) {
       throw CouncilBlocked(
