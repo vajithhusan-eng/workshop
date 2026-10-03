@@ -258,13 +258,15 @@ class AgoraDb extends _$AgoraDb {
   /// Indexes for the queries the UI runs on every keystroke and every paint.
   /// drift 2.35's Migrator has no createIndex(name, table, columns:) helper, so
   /// these are plain idempotent DDL; `IF NOT EXISTS` makes re-running a no-op.
+  ///
+  /// Column names are snake_case: drift emits `session_id`, not `sessionId`.
   static const List<String> indexDdl = <String>[
     'CREATE INDEX IF NOT EXISTS idx_messages_session_created '
-        'ON messages (sessionId, createdAt)',
+        'ON messages (session_id, created_at)',
     'CREATE INDEX IF NOT EXISTS idx_messages_session_round '
-        'ON messages (sessionId, round)',
+        'ON messages (session_id, round)',
     'CREATE INDEX IF NOT EXISTS idx_journal_session_at '
-        'ON journal_events (sessionId, at)',
+        'ON journal_events (session_id, at)',
     'CREATE INDEX IF NOT EXISTS idx_usage_counters_day '
         'ON usage_counters (day)',
   ];
