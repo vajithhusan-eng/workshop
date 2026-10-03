@@ -365,10 +365,11 @@ function agoraKernel(op, A) {
       return {text: b ? b.innerText.slice(0, 5000) : '', url: location.href};
     },
 
-    // Diagnostic only: report what each selector in a slot actually finds on
-    // this page right now. It reuses the same qsaDeep/visible/labels helpers the
-    // real matcher uses, so a green probe means the matcher will find it too.
-    probe: function (A) {
+    // Calibration probe for ONE slot: report what each selector in that slot
+    // actually finds on this page right now. Named probeSlot, not probe,
+    // because `probe` above is the element dump that diagnose() and the adapter
+    // healer depend on -- two ops with one key means the second silently wins.
+    probeSlot: function (A) {
       var spec = A.spec || {}, css = spec.css || [], txt = spec.text || [], out = [];
       var i, j;
       function sample(els) {

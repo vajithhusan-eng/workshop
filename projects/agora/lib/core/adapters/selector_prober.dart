@@ -305,7 +305,7 @@ class SelectorProber {
         final Map<String, dynamic> envelope = await _client.sendMap(
           'Runtime.evaluate',
           params: <String, dynamic>{
-            'expression': PageScript.call('probe', <String, dynamic>{
+            'expression': PageScript.call('probeSlot', <String, dynamic>{
               'slot': e.key,
               'spec': <String, dynamic>{
                 'css': e.value.css,
