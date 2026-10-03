@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart';
-import 'package:drift_flutter/drift_flutter.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
+
+import '../core/chrome/chrome_launcher.dart';
 
 part 'database.g.dart';
 
@@ -320,15 +324,22 @@ class AgoraDb extends _$AgoraDb {
     },
   );
 
-  /// Opens the database inside the platform's app-support directory so the
-  /// transcript survives upgrades and is not buried in a temp dir.
+  /// The transcript lives beside everything else Agora owns, in
+  /// `~/.config/agora/`, rather than in a platform-specific app-support folder.
+  ///
+  /// This deliberately does not use `drift_flutter`: that package drags
+  /// `flutter/widgets.dart` into the import graph, which makes every storage
+  /// layer unreachable from a plain `dart run` tool. Keeping the storage layer
+  /// Flutter-free is what lets `tool/journal_replay.dart` open the real vault
+  /// from the command line. `createInBackground` still runs SQLite off the UI
+  /// isolate, so the desktop app is unaffected.
   static QueryExecutor _open() {
-    return driftDatabase(
-      name: 'agora',
-      native: DriftNativeOptions(
-        databaseDirectory: getApplicationSupportDirectory,
-      ),
-    );
+    return LazyDatabase(() async {
+      await AgoraPaths.ensureDirs();
+      return NativeDatabase.createInBackground(
+        File(p.join(AgoraPaths.root, 'agora.sqlite')),
+      );
+    });
   }
 
   // ---- queries the engine needs ----
