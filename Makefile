@@ -5,7 +5,7 @@ help:
 	@echo "  make backend     - Start finance backend (:8123)"
 	@echo "  make frontend    - Start flutter web (:8081)"
 	@echo "  make test        - Run all tests (unit + api)"
-	@echo "  make test-unit   - Forensics math only (no server needed)"
+	@echo "  make test-unit   - Forensic math + watch-loop rules (no server needed)"
 	@echo "  make test-api    - API smoke test (needs backend running)"
 	@echo "  make verify      - test-unit + start backend + test-api"
 	@echo "  make setup       - Setup all projects"
@@ -36,6 +36,8 @@ test-unit:
 	cd backend && ./.venv/bin/python -m app.tests.test_forensics
 	@echo "── execution forensics ──"
 	cd backend && ./.venv/bin/python -m app.tests.test_execution
+	@echo "── watch loop rules ──"
+	cd backend && ./.venv/bin/python -m app.tests.test_watchloop
 
 # End-to-end over HTTP. Needs the backend up.
 test-api:

@@ -16,7 +16,7 @@ from .data_seed import (
 from .guardrails import check_output, brief_disclaimer, ADVISER_MODE
 from .forensics import autopsy, momentum_crash_risk, pbo_cscv
 from .execution import audit_orders, classify_order
-from .watchloop import RULES, detect
+from .watchloop import RULES, RULE_LIST, detect, rules_digest
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "omnivest_journal.json")
 
@@ -192,14 +192,62 @@ def techniques():
     return {"count": len(TECHNIQUES), "items": TECHNIQUES}
 
 
+class WatchReq(BaseModel):
+    """Everything the 12 rules are allowed to look at.
+
+    Every field is optional. A rule that cannot see what it needs stays quiet
+    rather than guessing -- outside-circle will not fire without a declared
+    circle, and cost-drift will not fire without a portfolio size. Silent is
+    the correct output when the evidence is absent.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    events: list[dict] = []
+    as_of: str | None = None
+    journal: list[dict] = []
+    notes: list[dict] = []
+    circle: list[str] = []
+    positions: list[dict] = []
+    portfolio_invested: float | None = None
+    costs_ytd: float | None = None
+
+    def context(self) -> dict:
+        return {
+            "events": self.events,
+            "as_of": self.as_of,
+            "journal": self.journal,
+            "notes": self.notes,
+            "circle": self.circle,
+            "positions": self.positions,
+            "portfolio_invested": self.portfolio_invested,
+            "costs_ytd": self.costs_ytd,
+        }
+
+
 @app.get("/api/watch/rules")
 def rules():
-    return {"count": len(RULES), "items": RULES}
+    # Driven by the same registry detect() runs, so the documented list and
+    # the executing list cannot drift apart.
+    return {
+        "count": len(RULES),
+        "items": RULES,
+        "implemented": len(RULE_LIST),
+        "note": "Every rule listed here has a live implementation. "
+        "'implemented' is asserted equal to 'count' by the test suite.",
+    }
 
 
 @app.post("/api/watch/detect")
-def watch_detect(req: BriefReq):
-    return {"fired": detect(req.events)}
+def watch_detect(req: WatchReq):
+    fired = detect(req.context())
+    return {
+        "fired": fired,
+        "n_fired": len(fired),
+        "rules_registered": len(RULE_LIST),
+        "rules_that_fired": sorted({f["rule"] for f in fired}),
+        "errors": [f for f in fired if f.get("rule_error")],
+    }
 
 
 # journal

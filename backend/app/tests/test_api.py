@@ -336,27 +336,51 @@ def test_execution_api() -> None:
     st, body = call("GET", "/api/execution/cite")
     check("cite 200", st == 200, f"status={st}")
     check("cite names the source", "Barber" in json.dumps(body), "")
-    check("cite separates measured from modelled",
-          body.get("measured") is not None and body.get("modelled") is not None, f"{body}")
-    check("cite states what we refuse to say",
-          len(body.get("what_we_refuse_to_say", [])) >= 2, f"{body}")
+    check(
+        "cite separates measured from modelled",
+        body.get("measured") is not None and body.get("modelled") is not None,
+        f"{body}",
+    )
+    check(
+        "cite states what we refuse to say",
+        len(body.get("what_we_refuse_to_say", [])) >= 2,
+        f"{body}",
+    )
 
     # A marketable limit that filled at the mid: zero cost, still AGGRESSIVE.
-    st, body = call("POST", "/api/execution/classify", {
-        "order": {"symbol": "AAA", "side": "buy", "order_type": "limit",
-                  "limit_price": 101.0, "fill_price": 100.1,
-                  "reference_price": 100.0, "bid": 100.0, "ask": 100.2},
-    })
+    st, body = call(
+        "POST",
+        "/api/execution/classify",
+        {
+            "order": {
+                "symbol": "AAA",
+                "side": "buy",
+                "order_type": "limit",
+                "limit_price": 101.0,
+                "fill_price": 100.1,
+                "reference_price": 100.0,
+                "bid": 100.0,
+                "ask": 100.2,
+            },
+        },
+    )
     check("classify 200", st == 200, f"status={st} {body}")
     check("classify => AGGRESSIVE", body.get("verdict") == "AGGRESSIVE", f"{body}")
     check("classify cost 0 at the mid", abs(body.get("cost_bps", -1)) < 1e-3, f"{body}")
     check("classify returns a reason", len(body.get("reason", "")) > 20, f"{body}")
 
     # No reference price at all -> must NOT be reported as passive/cheap.
-    st, body = call("POST", "/api/execution/classify",
-                    {"order": {"symbol": "AAA", "side": "buy", "fill_price": 100.0}})
+    st, body = call(
+        "POST",
+        "/api/execution/classify",
+        {"order": {"symbol": "AAA", "side": "buy", "fill_price": 100.0}},
+    )
     check("unmeasurable => NEUTRAL", body.get("verdict") == "NEUTRAL", f"{body}")
-    check("unmeasurable => basis unavailable", body.get("basis") == "unavailable", f"{body}")
+    check(
+        "unmeasurable => basis unavailable",
+        body.get("basis") == "unavailable",
+        f"{body}",
+    )
 
     # An empty audit is handled, not a crash.
     st, body = call("POST", "/api/execution/audit", {"orders": []})
@@ -364,15 +388,35 @@ def test_execution_api() -> None:
     check("empty audit => n_orders 0", body.get("n_orders") == 0, f"{body}")
 
     # A real impatient account.
-    orders = [{"symbol": "AAA", "side": "buy", "order_type": "limit",
-               "fill_price": 100.5, "reference_price": 100.0}] * 6
-    orders += [{"symbol": "BBB", "side": "buy", "order_type": "limit",
-                "fill_price": 100.0, "reference_price": 100.0}] * 3
-    st, body = call("POST", "/api/execution/audit",
-                    {"orders": orders, "portfolio_value": 500000,
-                     "orders_per_year": 250})
+    orders = [
+        {
+            "symbol": "AAA",
+            "side": "buy",
+            "order_type": "limit",
+            "fill_price": 100.5,
+            "reference_price": 100.0,
+        }
+    ] * 6
+    orders += [
+        {
+            "symbol": "BBB",
+            "side": "buy",
+            "order_type": "limit",
+            "fill_price": 100.0,
+            "reference_price": 100.0,
+        }
+    ] * 3
+    st, body = call(
+        "POST",
+        "/api/execution/audit",
+        {"orders": orders, "portfolio_value": 500000, "orders_per_year": 250},
+    )
     check("audit 200", st == 200, f"status={st} {body}")
-    check("audit => IMPATIENT", body.get("verdict") == "IMPATIENT", f"{body.get('verdict')}")
+    check(
+        "audit => IMPATIENT",
+        body.get("verdict") == "IMPATIENT",
+        f"{body.get('verdict')}",
+    )
     # 6 aggressive + 3 passive out of 9 orders.
     check(
         "audit share is 6/9",
@@ -386,26 +430,137 @@ def test_execution_api() -> None:
         body.get("annualised_drag_bps", 0) > 10_000,
         f"{body.get('annualised_drag_bps')}",
     )
-    check("audit reports rupees", (body.get("annualised_drag_rupees") or 0) > 0, f"{body}")
-    check("audit does not assume order count",
-          body.get("annualisation_assumed") is False, f"{body}")
-    check("audit returns a countermodel",
-          isinstance(body.get("countermodel"), dict), f"{body}")
-    check("countermodel carries a caveat",
-          len(body["countermodel"].get("caveat", "")) > 30, f"{body['countermodel']}")
+    check(
+        "audit reports rupees", (body.get("annualised_drag_rupees") or 0) > 0, f"{body}"
+    )
+    check(
+        "audit does not assume order count",
+        body.get("annualisation_assumed") is False,
+        f"{body}",
+    )
+    check(
+        "audit returns a countermodel",
+        isinstance(body.get("countermodel"), dict),
+        f"{body}",
+    )
+    check(
+        "countermodel carries a caveat",
+        len(body["countermodel"].get("caveat", "")) > 30,
+        f"{body['countermodel']}",
+    )
 
     # Unknown fields are rejected, not silently dropped.
-    st, _ = call("POST", "/api/execution/audit",
-                 {"orders": [], "portfolio_valu": 5})
+    st, _ = call("POST", "/api/execution/audit", {"orders": [], "portfolio_valu": 5})
     check("unknown field => 422", st == 422, f"status={st}")
 
     # Out-of-range fill probability.
-    st, body = call("POST", "/api/execution/audit",
-                    {"orders": orders, "fill_probability": 0.0})
+    st, body = call(
+        "POST", "/api/execution/audit", {"orders": orders, "fill_probability": 0.0}
+    )
     check("fill_probability 0 => 422", st == 422, f"status={st} {body}")
-    st, _ = call("POST", "/api/execution/audit",
-                 {"orders": orders, "fill_probability": 2.0})
+    st, _ = call(
+        "POST", "/api/execution/audit", {"orders": orders, "fill_probability": 2.0}
+    )
     check("fill_probability 2 => 422", st == 422, f"status={st}")
+
+
+def test_watch_api() -> None:
+    """The watch loop is the daily habit engine. If it silently fires on
+    nothing, or accepts a context it cannot actually see, the one screen a
+    user opens every morning is worthless."""
+    print("\n[watch loop]")
+
+    # 1. the registry must not overstate itself
+    status, rules = call("GET", "/api/watch/rules")
+    check("GET /api/watch/rules", status == 200, f"{status}")
+    if status == 200:
+        check(
+            "rules implemented == documented",
+            rules.get("implemented") == rules.get("count"),
+            f"implemented={rules.get('implemented')} documented={rules.get('count')}",
+        )
+        check(
+            "all 12 rules registered",
+            rules.get("implemented") == 12,
+            f"{rules.get('implemented')}",
+        )
+        check(
+            "count matches items length",
+            rules.get("count") == len(rules.get("items", [])),
+            f"count={rules.get('count')} items={len(rules.get('items', []))}",
+        )
+        check(
+            "every rule states its basis",
+            all(r.get("basis") for r in rules.get("items", [])),
+            "a rule without a basis must not fire",
+        )
+
+    # 2. a context that triggers big-move-vs-sector (stock +4%, sector +0.2%)
+    status, body = call(
+        "POST",
+        "/api/watch/detect",
+        {
+            "events": [{"symbol": "OMNITEST", "move_pct": 4.0, "sector_move_pct": 0.2}],
+        },
+    )
+    check("POST detect 200", status == 200, f"{status} {str(body)[:200]}")
+    if status == 200:
+        check(
+            "returns fired list", isinstance(body.get("fired"), list), f"{list(body)}"
+        )
+        check(
+            "reports rules_registered",
+            body.get("rules_registered") == 12,
+            f"{body.get('rules_registered')}",
+        )
+        check(
+            "n_fired matches fired length",
+            body.get("n_fired") == len(body.get("fired", [])),
+            f"{body.get('n_fired')} vs {len(body.get('fired', []))}",
+        )
+        ids = [f.get("rule") for f in body.get("fired", [])]
+        check("big-move-vs-sector fired", "big-move-vs-sector" in ids, f"{ids}")
+        check(
+            "surfaces no errors",
+            body.get("errors") in (None, []),
+            f"{body.get('errors')}",
+        )
+        check(
+            "findings carry a human note",
+            all(f.get("note") for f in body.get("fired", [])),
+            "a finding without a note is not a finding",
+        )
+
+    # 3. an empty context must stay QUIET, not invent findings
+    status, quiet = call("POST", "/api/watch/detect", {})
+    check("empty context 200", status == 200, f"{status} {str(quiet)[:200]}")
+    if status == 200:
+        check(
+            "empty context fires nothing",
+            quiet.get("n_fired") == 0,
+            f"fired {[f.get('rule') for f in quiet.get('fired', [])]}",
+        )
+        # a rule with no data must stay silent rather than guess
+        check(
+            "outside-circle silent with no circle declared",
+            "outside-circle" not in [f.get("rule") for f in quiet.get("fired", [])],
+            "must not invent a boundary",
+        )
+
+    # 4. determinism: identical input, identical output
+    status, again = call(
+        "POST",
+        "/api/watch/detect",
+        {
+            "events": [{"symbol": "OMNITEST", "move_pct": 4.0, "sector_move_pct": 0.2}],
+        },
+    )
+    check("detect is deterministic", again == body, "same input must give same output")
+
+    # 5. a typo in the context must fail loudly, not be silently dropped
+    status, _ = call("POST", "/api/watch/detect", {"events": [], "bogus_field": 1})
+    check("unknown context field => 422", status == 422, f"status={status}")
+
 
 def main() -> int:
     print("=" * 68)
@@ -425,7 +580,8 @@ def main() -> int:
         test_content_endpoints,
         test_write_paths,
         test_guardrail_surfaced,
-    test_execution_api,
+        test_execution_api,
+        test_watch_api,
     ):
         fn()
     print("\n" + "=" * 68)
