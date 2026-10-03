@@ -102,6 +102,28 @@ class WebAgentAdapter implements AgentAdapter {
       // Needed for screenshots in the Verbatim Vault.
       await _client.send('Page.getLayoutMetrics', sessionId: _sessionId);
 
+      // Chrome throttles timers in background tabs to roughly once per minute
+      // and freezes them entirely once a page has been hidden for five minutes.
+      // A council drives three or more tabs at once and polls each one while it
+      // waits on the others, so without this the polling loop on every
+      // non-foreground tab stalls until the full completion timeout -- and the
+      // "still typing?" check that ends a send never fires. Focus emulation
+      // tells the page it is visible and focused regardless of which tab the
+      // user happens to be looking at.
+      //
+      // Best-effort by design: if Chrome or the site rejects the call we still
+      // work, only slower, so a failure must never abort a council.
+      try {
+        await _client.send(
+          'Emulation.setFocusEmulationEnabled',
+          params: <String, dynamic>{'enabled': true},
+          sessionId: _sessionId,
+        );
+        _log.d('focus emulation on');
+      } on Object catch (e) {
+        _log.w('focus emulation unavailable, polling may be slow', e);
+      }
+
       _emit(AgentPhase.opening);
       await _navigate(config.homeUrl);
 
@@ -233,6 +255,15 @@ class WebAgentAdapter implements AgentAdapter {
     }
     _interrupted = false;
     await _waitForComposer();
+
+    // Serialized dispatch means the agent we are about to type into should also
+    // be the foreground tab, so the compositor keeps it at full frame rate.
+    // Best-effort for the same reason as focus emulation above.
+    try {
+      await _client.send('Page.bringToFront', sessionId: _sessionId);
+    } on Object catch (e) {
+      _log.w('bringToFront failed', e);
+    }
 
     _emit(AgentPhase.composing);
     final Map<String, dynamic> written = await _eval('write', <String, dynamic>{
