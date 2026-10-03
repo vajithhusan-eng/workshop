@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/adapters/adapter_config.dart';
+import '../core/adapters/selector_prober.dart';
 import '../state/agora_controller.dart';
+import 'probe_report.dart';
 import 'theme.dart';
 
 /// Adapters are data, not code. This screen is where a site redesign gets
@@ -25,10 +27,23 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
   String? _error;
   bool _loading = true;
 
+  /// Created lazily so simply opening this screen never launches a browser.
+  SelectorProber? _prober;
+  SiteProbe? _probe;
+  bool _probing = false;
+  String? _probeError;
+
   @override
   void initState() {
     super.initState();
     _load(_kind);
+  }
+
+  @override
+  void dispose() {
+    // A prober owns a Chrome window. Opening this screen must not leak one.
+    _prober?.dispose();
+    super.dispose();
   }
 
   Future<void> _load(String kind) async {
@@ -36,6 +51,9 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
       _loading = true;
       _error = null;
       _kind = kind;
+      // A result for ChatGPT says nothing about Gemini. Never show it under a
+      // different name.
+      _probe = null;
     });
     try {
       final raw = await rootBundle.loadString('assets/adapters/$kind.json');
@@ -52,6 +70,37 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
         _error = '$e';
         _json = null;
         _loading = false;
+      });
+    }
+  }
+
+  /// Opens the real site and asks the page which selectors still resolve.
+  ///
+  /// Read-only and disposable: it uses its own tab and closes it, so running it
+  /// during a debate would be safe too — but the button is disabled anyway while
+  /// the probe is in flight, because two Chromes on one profile is a confusing
+  /// thing to hand a user.
+  Future<void> _runProbe(AdapterConfig cfg) async {
+    setState(() {
+      _probing = true;
+      _probe = null;
+    });
+    try {
+      final prober = _prober ??= SelectorProber();
+      final result = await prober.probe(cfg);
+      if (!mounted) return;
+      setState(() {
+        _probe = result;
+        _probing = false;
+      });
+    } on Object catch (e) {
+      // SelectorProber.probe never throws by contract, so reaching here means
+      // the contract itself broke. Show it rather than a blank card.
+      if (!mounted) return;
+      setState(() {
+        _probing = false;
+        _probe = null;
+        _probeError = '$e';
       });
     }
   }
@@ -108,6 +157,8 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
                 : ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      _probeCard(cfg),
+                      const SizedBox(height: 14),
                       _validation(cfg),
                       const SizedBox(height: 14),
                       _inventory(cfg),
@@ -130,6 +181,82 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
       return null;
     }
   }
+
+  /// Live evidence beats a valid schema. The JSON being well-formed says the
+  /// file parses, not that the site still has the element it names.
+  Widget _probeCard(AdapterConfig? cfg) {
+    final c = cfg;
+    if (c == null) {
+      return const _Note(
+        'Fix the file first — Agora cannot probe an adapter that will not parse.',
+        bad: true,
+      );
+    }
+    final problems = c.validate();
+    if (problems.isNotEmpty) {
+      return const _Note(
+        'This adapter has validation problems, so it cannot be probed. Fix the '
+        'items below first.',
+      );
+    }
+
+    final probe = _probe;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Live probe',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                FilledButton.icon(
+                  icon: _probing
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.travel_explore, size: 16),
+                  label: Text(
+                    probe == null ? 'Probe live page' : 'Probe again',
+                  ),
+                  onPressed: _probing ? null : () => _runProbe(c),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const _Note(
+              'Opens ${_HOME_NOTE}in Agora\'s own Chrome and asks the real page '
+              'which selectors still resolve. Nothing is sent and nothing is '
+              'stored.',
+            ),
+            if (_probing) ...[
+              const SizedBox(height: 12),
+              const LinearProgressIndicator(),
+            ],
+            if (_probeError != null) ...[
+              const SizedBox(height: 12),
+              _Note('Probe failed: $_probeError', bad: true),
+            ],
+            if (probe != null) ...[
+              const SizedBox(height: 12),
+              ProbeReport(probe),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static const _HOME_NOTE = 'in Agora\'s own Chrome. ';
 
   Widget _validation(AdapterConfig? cfg) {
     if (cfg == null) {
@@ -259,8 +386,9 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
           ),
           const SizedBox(height: 10),
           const _Note(
-            'Live probing against a real tab is the next step: open the '
-            'site, then have Agora report which selector actually matched.',
+            'A probe reports what the page had today, on a thread with no '
+            'messages. Nodes that only exist after an answer are reported as '
+            'unverifiable, not broken.',
           ),
         ],
       ),
