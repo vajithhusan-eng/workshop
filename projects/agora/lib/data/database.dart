@@ -1,21 +1,11 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 
 part 'database.g.dart';
 
-/// Stable, cheap content hash for the Verbatim Vault.
-///
-/// Every agent reply is hashed exactly as received. This is Agora's proof that
-/// a stored message was never reworded: the UI renders from `rawText`, and
-/// `contentHash` is recomputed on read to detect tampering.
-String contentHash(String raw) =>
-    sha256.convert(utf8Bytes(raw)).toString().substring(0, 32);
-
-List<int> utf8Bytes(String s) => const Utf8Encoder().convert(s);
+// The Verbatim Vault hash lives in ../core/util/hashing.dart — defined in one
+// place so the stamp written on save is the stamp re-checked on read.
 
 /// One session = one chat = one project.
 class Sessions extends Table {
@@ -44,6 +34,10 @@ class Sessions extends Table {
 
   /// Template this session was created from, if any.
   TextColumn get templateId => text().nullable()();
+
+  /// Archived sessions stay on disk and stay searchable, but drop out of the
+  /// default sidebar. Hiding is not deleting.
+  BoolColumn get archived => boolean().withDefault(const Constant(false))();
 
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
@@ -259,7 +253,7 @@ class AgoraDb extends _$AgoraDb {
   AgoraDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -274,6 +268,33 @@ class AgoraDb extends _$AgoraDb {
         "CREATE TRIGGER messages_ai AFTER INSERT ON messages BEGIN "
         "INSERT INTO messages_fts(rowid, raw_text) VALUES (new.rowid, new.raw_text); "
         "END",
+      );
+    },
+    onUpgrade: (m, from, to) async {
+      // v1 -> v2: the sidebar gained `archived`. Additive only, so no verbatim
+      // text is rewritten and no data is at risk.
+      if (from < 2) {
+        await m.addColumn(sessions, sessions.archived);
+      }
+      // Indexes for the queries the UI runs on every keystroke and every paint.
+      // Safe to re-issue: SQLite treats an identical index as a no-op.
+      await m.createIndex('idx_messages_session_created', messages, columns: [
+        messages.sessionId,
+        messages.createdAt,
+      ]);
+      await m.createIndex(
+        'idx_messages_session_round',
+        messages,
+        columns: [messages.sessionId, messages.round],
+      );
+      await m.createIndex('idx_journal_session_at', journalEvents, columns: [
+        journalEvents.sessionId,
+        journalEvents.at,
+      ]);
+      await m.createIndex(
+        'idx_usage_counters_day',
+        usageCounters,
+        columns: [usageCounters.day],
       );
     },
     beforeOpen: (details) async {

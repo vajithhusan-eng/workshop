@@ -1,25 +1,38 @@
 # opencode-usage-quota-tracker — WORKSHOP Project Notes
 
-## Status: Already Configured Globally
+## Status: Configured Globally
 
-The `opencode-usage-quota-tracker` plugin is **already enabled** in the global
-OpenCode configuration at `~/.config/opencode/opencode.jsonc` (line 613).
+The `opencode-usage-quota-tracker` plugin is enabled in the global OpenCode
+configuration at `~/.config/opencode/opencode.jsonc`.
+
+### Live global plugin list
 
 ```jsonc
 "plugins": [
-    "@tarquinen/opencode-dcp",
-    "opencode-usage-quota-tracker",
-    "opencode-model-recommender",
-    "/home/vajith-husan/.config/opencode/plugins/custom-tools"
+  "@tarquinen/opencode-dcp",
+  "opencode-usage-quota-tracker",
+  "/home/vajith-husan/.config/opencode/plugins/custom-tools",
+  "/home/vajith-husan/.config/opencode/plugins/opencode-auto-fix"
 ]
 ```
+
+Local directories under `~/.config/opencode/plugins/` are **auto-scanned**, so
+anything present there loads even when it is absent from the array above.
+
+### Disabled
+
+`opencode-model-recommender` is currently parked at
+`plugins/.disabled-opencode-model-recommender/`. It depends on `ctx.catalog`,
+which was removed from the plugin API in OpenCode v2, so it throws on load and
+self-neutralises (ranking silently off). Rename it back to
+`opencode-model-recommender/` to re-enable once a v2-compatible release ships.
 
 ## No Project-Level Configuration Needed
 
 The plugin works with the global config as-is. It requires:
 
-1. **A provider API key**: Run `opencode2 auth login` (already done for this setup)
-2. **OpenCode V2**: The global config uses V2 plugin API
+1. A provider API key, already present via `opencode auth login`
+2. OpenCode V2 — the global config uses the V2 plugin API
 
 ## What It Does
 
@@ -40,9 +53,3 @@ If needed, the plugin can also be installed per-project by copying it to:
 `<project>/.opencode/plugins/opencode-usage-quota-tracker/`
 
 This is NOT necessary for WORKSHOP since the global config already handles it.
-
-## Prerequisites
-
-- OpenCode V2
-- Provider API key via `opencode2 auth login`
-- The global config already satisfies both requirements
