@@ -201,6 +201,25 @@ class JournalReplay {
         ),
       );
     }
+    // A turn Agora sent but never got a journalled reply for is the most
+    // interesting failure there is, so it must be visible rather than silently
+    // dropped by the capture-driven loop above.
+    for (final entry in pending.entries) {
+      for (final orphan in entry.value) {
+        steps.add(
+          ReplayStep(
+            target: entry.key,
+            body: orphan.sent,
+            status: ReplayStatus.failed,
+            detail:
+                orphan.error ??
+                'the run recorded this turn but never journalled a reply for '
+                    'it, so there is nothing to compare against',
+          ),
+        );
+      }
+    }
+
     return ReplayReport(
       steps: steps,
       dispatched: dispatched,

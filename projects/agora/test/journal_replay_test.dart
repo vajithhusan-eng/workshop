@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:agora/core/adapters/agent_adapter.dart';
 import 'package:agora/core/adapters/adapter_config.dart';
 import 'package:agora/core/council/journal_replay.dart';
+import 'package:agora/core/util/hashing.dart';
 import 'package:agora/data/database.dart';
 import 'package:agora/data/session_repository.dart';
 
@@ -27,18 +28,28 @@ class _FakeAgent implements AgentAdapter {
   @override
   String get displayName => 'Fake';
 
+  /// JournalReplay never reads the config; the interface just requires one. The
+  /// shipped sandbox fixture is used rather than a hand-rolled literal so this
+  /// fake cannot drift away from a config that would actually parse.
   @override
-  AdapterConfig? get config => null;
+  AdapterConfig get config => _sandboxConfig;
+  static final AdapterConfig _sandboxConfig = AdapterConfig.parse(
+    File('tool/sandbox/adapter_sandbox.json').readAsStringSync(),
+    origin: 'adapter_sandbox.json',
+  );
 
   @override
   String get targetId => 'fake-target';
 
   @override
-  AgentStatus get status => AgentStatus.ready;
+  AgentStatus get status =>
+      const AgentStatus(AgentPhase.ready, detail: 'stand-in');
 
   @override
-  AgentDiagnostics get diagnostics =>
-      const AgentDiagnostics(allHealthy: true, checks: <String>[]);
+  Stream<AgentStatus> get statuses => const Stream<AgentStatus>.empty();
+
+  @override
+  Stream<String> get tokens => const Stream<String>.empty();
 
   @override
   Future<LoginState> connect() async =>
@@ -66,13 +77,19 @@ class _FakeAgent implements AgentAdapter {
   Future<Verbatim?> peekLastMessage() async => null;
 
   @override
-  bool selectModel(String label) => true;
+  Future<bool> selectModel(String label) async => true;
 
   @override
   Future<void> interrupt() async {}
 
   @override
   Future<void> close() async {}
+
+  @override
+  Future<AgentDiagnostics> diagnose() async => const AgentDiagnostics(
+    kind: 'fake',
+    results: <String, bool>{'send': true, 'extract': true},
+  );
 }
 
 void main() {
@@ -101,7 +118,7 @@ void main() {
       id,
       'capture',
       agentId: 'a',
-      payload: {'round': 1, 'kind': 'fake', 'hash': 'deadbeef'},
+      payload: {'round': 1, 'kind': 'fake', 'hash': contentHash('ANSWER ONE')},
     );
 
     final agent = _FakeAgent((_) => 'ANSWER ONE');
@@ -131,7 +148,12 @@ void main() {
       id,
       'capture',
       agentId: 'a',
-      payload: {'round': 1, 'kind': 'fake', 'hash': 'expected-but-wrong'},
+      // Deliberately the hash of a different answer.
+      payload: {
+        'round': 1,
+        'kind': 'fake',
+        'hash': contentHash('what the site used to say'),
+      },
     );
 
     final report = await JournalReplay(
@@ -164,22 +186,20 @@ void main() {
       id,
       'capture',
       agentId: 'a',
-      payload: {'round': 1, 'kind': 'fake', 'hash': 'h1'},
+      payload: {'round': 1, 'kind': 'fake', 'hash': contentHash('REPLY-TO-P1')},
     );
     await repo.journal(
       id,
       'capture',
       agentId: 'a',
-      payload: {'round': 2, 'kind': 'fake', 'hash': 'h2'},
+      payload: {'round': 2, 'kind': 'fake', 'hash': contentHash('REPLY-TO-P2')},
     );
 
-    // The site answers round 1's packet on the *second* await, which only works
-    // if the replay queued replies FIFO instead of pairing by position.
-    var n = 0;
-    final agent = _FakeAgent((prompt) {
-      n++;
-      return prompt == 'P1' ? 'REPLY-TO-P2' : 'REPLY-TO-P1';
-    });
+    // The fake answers from its own `sent` list, so a positional pairing bug
+    // would show up as the wrong body being credited with the wrong reply.
+    final agent = _FakeAgent(
+      (prompt) => prompt == 'P1' ? 'REPLY-TO-P1' : 'REPLY-TO-P2',
+    );
 
     final report = await JournalReplay(
       repo: repo,
@@ -190,8 +210,10 @@ void main() {
     expect(report.steps, hasLength(2));
     expect(report.steps[0].body, 'P1');
     expect(report.steps[1].body, 'P2');
-    // Both were compared against a hash that matches neither answer.
-    expect(report.differs, 2);
+    // Both matched: the replay credited P1 with its own reply and P2 with its
+    // own. Crossing the two would have produced two `differs` instead.
+    expect(report.matched, 2);
+    expect(report.differs, 0);
   });
 
   test(
@@ -295,7 +317,7 @@ void main() {
     await db
         .into(db.journalEvents)
         .insert(
-          db.JournalEventsCompanion.insert(
+          JournalEventsCompanion.insert(
             id: 'jrn-broken',
             sessionId: id,
             kind: 'dispatch',
