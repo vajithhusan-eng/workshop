@@ -4,6 +4,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 
 import '../data/database.dart' as db;
+import '../core/council/council_runner.dart';
 import '../data/session_repository.dart';
 
 /// How a stored message is drawn. The bytes never change — only the lens.
@@ -264,4 +265,128 @@ class AgoraController extends ChangeNotifier {
     showArchived = !showArchived;
     notifyListeners();
   }
+
+  // ------------------------------------------------------------- the council
+
+  /// The live run, if any. Null whenever no council is in progress — one
+  /// session at a time is a locked decision, and this field is where it is
+  /// enforced rather than merely documented.
+  CouncilRunner? _runner;
+  CouncilRunner? get runner => _runner;
+
+  bool get councilRunning => _runner?.isRunning ?? false;
+
+  String? _councilError;
+  String? get councilError => _councilError;
+
+  String? _councilStop;
+  String? get councilStop => _councilStop;
+
+  List<String> _councilNotes = const <String>[];
+  List<String> get councilNotes => _councilNotes;
+
+  Timer? _noteTimer;
+
+  /// Convenes the selected session around its opening prompt.
+  ///
+  /// Returns false and sets `councilError` when a precondition fails — no
+  /// leader, no seats, no session. A precondition failure is never thrown at
+  /// the caller, because the UI has to show it, not crash on it.
+  Future<bool> startCouncil({String? prompt}) async {
+    final sessionId = selectedId;
+    if (sessionId == null) {
+      _councilError = 'Select a session before convening a council.';
+      notifyListeners();
+      return false;
+    }
+    if (councilRunning) return false; // already convening; not an error
+
+    _councilError = null;
+    _councilStop = null;
+    _councilNotes = const <String>[];
+
+    final leader = leaderSeat;
+    if (leader == null) {
+      _councilError = 'Promote a leader before convening the council.';
+      notifyListeners();
+      return false;
+    }
+    // A leader seat whose agent row has gone missing is as unusable as no
+    // leader at all, and is the more confusing failure of the two.
+    final leaderKind = agentFor(leader.agentId)?.kind;
+    if (leaderKind == null) {
+      _councilError = 'That leader seat no longer points at a known agent.';
+      notifyListeners();
+      return false;
+    }
+
+    // Promotion of `leader` is lost inside the collection body, so capture the
+    // id rather than re-reading the getter.
+    final leaderId = leader.agentId;
+    final bindings = <SeatBinding>[
+      for (final seat in seats)
+        if (agentFor(seat.agentId)?.kind case final kind?)
+          SeatBinding(
+            kind: kind,
+            displayName: agentFor(seat.agentId)?.displayName ?? kind,
+            roleCard: seat.roleCard,
+            isLeader: seat.agentId == leaderId,
+          ),
+    ];
+    if (bindings.isEmpty) {
+      _councilError = 'A council needs at least one seat.';
+      notifyListeners();
+      return false;
+    }
+
+    final kindToAgentId = <String, String>{
+      for (final seat in seats)
+        if (agentFor(seat.agentId)?.kind case final k?) k: seat.agentId,
+    };
+
+    final session = await repo.session(sessionId);
+    final runner = CouncilRunner(
+      repo: repo,
+      sessionId: sessionId,
+      kindToAgentId: kindToAgentId,
+    );
+    _runner = runner;
+    notifyListeners();
+
+    // The runner reports progress as plain strings; poll them rather than
+    // plumbing a second stream through the engine, which must stay storage- and
+    // UI-free so it stays testable with fakes.
+    var seen = 0;
+    _noteTimer = Timer.periodic(const Duration(milliseconds: 400), (t) {
+      if (runner.notes.length == seen) return;
+      seen = runner.notes.length;
+      _councilNotes = runner.notes;
+      notifyListeners();
+    });
+
+    try {
+      final outcome = await runner.run(
+        seats: bindings,
+        leaderKind: leaderKind,
+        prompt: (prompt ?? session?.prompt ?? '').trim(),
+        maxRounds: session?.maxRounds ?? 12,
+      );
+      _councilStop = outcome.stop.name;
+    } on CouncilBlocked catch (e) {
+      _councilError = e.reason;
+    } on Object catch (e) {
+      _councilError = e.toString();
+    } finally {
+      _noteTimer?.cancel();
+      _noteTimer = null;
+      _councilNotes = runner.notes;
+      _runner = null;
+      notifyListeners();
+    }
+    return _councilError == null;
+  }
+
+  /// Hard-stops the debate. The orchestrator records the stop as a user
+  /// interrupt so the session shows why it ended rather than just ending.
+  void interruptCouncil() => _runner?.interrupt();
 }

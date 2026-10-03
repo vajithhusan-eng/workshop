@@ -318,22 +318,52 @@ class CouncilPanel extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FilledButton.icon(
-          onPressed: () => ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            const SnackBar(
-              content: Text(
-                'The Chrome bridge is not wired to the UI yet — the '
-                'orchestrator still runs headless from tool/.',
+        if (c.councilRunning)
+          Row(
+            children: [
+              const SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AgoraTheme.accent,
+                ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  c.councilNotes.isEmpty ? 'Convening…' : c.councilNotes.last,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AgoraTheme.caption,
+                ),
+              ),
+              TextButton.icon(
+                onPressed: c.interruptCouncil,
+                icon: const Icon(Icons.stop, size: 14),
+                label: const Text('Stop'),
+                style: TextButton.styleFrom(foregroundColor: AgoraTheme.danger),
+              ),
+            ],
+          )
+        else
+          FilledButton.icon(
+            onPressed: s.prompt.trim().isEmpty ? null : c.startCouncil,
+            icon: const Icon(Icons.play_arrow, size: 16),
+            label: const Text('Start the council'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AgoraTheme.accent,
+              foregroundColor: const Color(0xFF0B0E13),
             ),
           ),
-          icon: const Icon(Icons.play_arrow, size: 16),
-          label: const Text('Start the council'),
-          style: FilledButton.styleFrom(
-            backgroundColor: AgoraTheme.accent,
-            foregroundColor: const Color(0xFF0B0E13),
-          ),
-        ),
+        if (c.councilError != null) ...[
+          const SizedBox(height: 8),
+          _councilError(c.councilError!),
+        ],
+        if (!c.councilRunning && c.councilStop != null) ...[
+          const SizedBox(height: 8),
+          Text('Last run stopped: ${c.councilStop}', style: AgoraTheme.caption),
+        ],
         const SizedBox(height: 6),
         Row(
           children: [
@@ -372,4 +402,29 @@ class CouncilPanel extends StatelessWidget {
       ),
     );
   }
+
+  /// Blocked runs are the common case on a first launch — a site the user has
+  /// never logged into — so the remedy has to be on screen, not in a stack
+  /// trace. `CouncilBlocked` already carries a sentence written for a human.
+  Widget _councilError(String message) => Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: AgoraTheme.danger.withValues(alpha: 0.10),
+      border: Border.all(color: AgoraTheme.danger.withValues(alpha: 0.4)),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.error_outline, size: 14, color: AgoraTheme.danger),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            message,
+            style: const TextStyle(fontSize: 11.5, color: AgoraTheme.danger),
+          ),
+        ),
+      ],
+    ),
+  );
 }
