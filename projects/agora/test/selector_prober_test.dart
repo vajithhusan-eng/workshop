@@ -143,14 +143,74 @@ void main() {
       expect(p.matchedCount, 1);
       expect(p.allMatched, isFalse);
       expect(p.broken.map((ProbeOutcome o) => o.slot), <String>['send']);
-      expect(p.headline, '1 of 2 slots matched');
+      expect(p.headline, '1 of 2 checkable slots broken');
     });
 
     test('all green when every declared slot matched', () {
       final p = probe(<ProbeOutcome>[ok('composer'), ok('send')]);
       expect(p.allMatched, isTrue);
-      expect(p.headline, 'all 2 slots matched');
+      expect(p.headline, 'all 2 checkable slots matched');
       expect(p.broken, isEmpty);
+    });
+
+    test('a login state that loses is not a broken selector', () {
+      // signed in matched, so signed out cannot. Scoring that as rot would tell
+      // the user their adapter is stale when it is behaving perfectly.
+      final p = probe(<ProbeOutcome>[
+        ok('composer'),
+        ok('signed in'),
+        ProbeOutcome(
+          slot: 'signed out',
+          spec: const SelectorSpec(text: <String>['sign in']),
+          kind: SlotKind.state,
+          hits: const <SelectorHit>[],
+        ),
+      ]);
+      expect(p.broken, isEmpty);
+      expect(p.unverifiable, isEmpty);
+      expect(p.allMatched, isTrue);
+    });
+
+    test('a node that cannot exist yet is unverifiable, not broken', () {
+      final p = probe(<ProbeOutcome>[
+        ok('composer'),
+        ProbeOutcome(
+          slot: 'assistant node',
+          spec: const SelectorSpec(css: <String>['[data-role="assistant"]']),
+          kind: SlotKind.conditional,
+          hits: const <SelectorHit>[],
+        ),
+        ProbeOutcome(
+          slot: 'user node',
+          spec: const SelectorSpec(css: <String>['[data-role="user"]']),
+          kind: SlotKind.conditional,
+          hits: const <SelectorHit>[],
+        ),
+      ]);
+      expect(p.broken, isEmpty);
+      expect(p.allMatched, isTrue);
+      expect(p.unverifiable.map((ProbeOutcome o) => o.slot), <String>[
+        'assistant node',
+        'user node',
+      ]);
+      expect(p.headline, '0 slot(s) broken, 2 unverifiable on an empty thread');
+    });
+
+    test('slotKinds covers every slot the prober reports', () {
+      // A slot with no declared kind would silently default to element and so
+      // be able to fail a healthy adapter.
+      final Map<String, dynamic> raw =
+          jsonDecode(File('assets/adapters/gemini.json').readAsStringSync())
+              as Map<String, dynamic>;
+      for (final String slot in probeSlotsOf(
+        AdapterConfig.fromJson(raw),
+      ).keys) {
+        expect(
+          slotKinds.containsKey(slot),
+          isTrue,
+          reason: 'no kind for $slot',
+        );
+      }
     });
 
     test('a transport failure explains itself instead of looking like rot', () {
