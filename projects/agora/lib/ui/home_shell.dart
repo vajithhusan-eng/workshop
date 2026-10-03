@@ -5,6 +5,7 @@ import '../state/agora_controller.dart';
 import 'calibration_studio_screen.dart';
 import 'composer.dart';
 import 'council_panel.dart';
+import 'onboarding_screen.dart';
 import 'decision_record_screen.dart';
 import 'session_sidebar.dart';
 import 'settings_screen.dart';
@@ -13,6 +14,52 @@ import 'transcript_view.dart';
 
 /// The room: projects on the left, the verbatim record in the middle, the
 /// council on the right. One live session at a time, per the locked decisions.
+/// Shows the first-run wizard exactly once, then the shell.
+///
+/// A splash rather than a default-to-skip: on a fresh profile the very next
+/// thing a user does is press Start, and the wizard is the only place that
+/// explains why Chrome is about to open with a profile they have never seen.
+class HomeShellGate extends StatefulWidget {
+  const HomeShellGate({super.key, required this.c});
+
+  final AgoraController c;
+
+  @override
+  State<HomeShellGate> createState() => _HomeShellGateState();
+}
+
+class _HomeShellGateState extends State<HomeShellGate> {
+  bool? _onboarded;
+
+  @override
+  void initState() {
+    super.initState();
+    OnboardingScreen.alreadyOnboarded().then((v) {
+      if (mounted) {
+        setState(() => _onboarded = v);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final done = _onboarded;
+    if (done == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (done) {
+      return HomeShell(c: widget.c);
+    }
+    return OnboardingScreen(
+      onDone: () async {
+        if (mounted) {
+          setState(() => _onboarded = true);
+        }
+      },
+    );
+  }
+}
+
 class HomeShell extends StatelessWidget {
   const HomeShell({super.key, required this.c});
   final AgoraController c;

@@ -33,7 +33,7 @@ class AgoraApp extends ConsumerWidget {
       title: 'Agora',
       debugShowCheckedModeBanner: false,
       theme: AgoraTheme.build(),
-      home: HomeShell(c: c),
+      home: HomeShellGate(c: c),
     );
   }
 }
