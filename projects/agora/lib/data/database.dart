@@ -255,6 +255,26 @@ class AgoraDb extends _$AgoraDb {
   @override
   int get schemaVersion => 2;
 
+  /// Indexes for the queries the UI runs on every keystroke and every paint.
+  /// drift 2.35's Migrator has no createIndex(name, table, columns:) helper, so
+  /// these are plain idempotent DDL; `IF NOT EXISTS` makes re-running a no-op.
+  static const List<String> indexDdl = <String>[
+    'CREATE INDEX IF NOT EXISTS idx_messages_session_created '
+        'ON messages (sessionId, createdAt)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_session_round '
+        'ON messages (sessionId, round)',
+    'CREATE INDEX IF NOT EXISTS idx_journal_session_at '
+        'ON journal_events (sessionId, at)',
+    'CREATE INDEX IF NOT EXISTS idx_usage_counters_day '
+        'ON usage_counters (day)',
+  ];
+
+  Future<void> _ensureIndexes() async {
+    for (final sql in indexDdl) {
+      await customStatement(sql);
+    }
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
@@ -265,10 +285,14 @@ class AgoraDb extends _$AgoraDb {
         "raw_text, content='messages', content_rowid='rowid')",
       );
       await customStatement(
-        "CREATE TRIGGER messages_ai AFTER INSERT ON messages BEGIN "
-        "INSERT INTO messages_fts(rowid, raw_text) VALUES (new.rowid, new.raw_text); "
-        "END",
+        "CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages "
+        "BEGIN INSERT INTO messages_fts(rowid, raw_text) "
+        "VALUES (new.rowid, new.raw_text); END",
       );
+      // createAll() only creates what drift knows about, so the hand-written
+      // indexes below have to be issued here too - otherwise a fresh install
+      // never gets them and only an upgrade path would.
+      await _ensureIndexes();
     },
     onUpgrade: (m, from, to) async {
       // v1 -> v2: the sidebar gained `archived`. Additive only, so no verbatim
@@ -276,23 +300,17 @@ class AgoraDb extends _$AgoraDb {
       if (from < 2) {
         await m.addColumn(sessions, sessions.archived);
       }
-      // Indexes for the queries the UI runs on every keystroke and every paint.
-      // drift 2.35's Migrator has no createIndex(name, table, columns:) helper,
-      // so these are plain idempotent DDL. IF NOT EXISTS makes re-running the
-      // migration a no-op.
-      const indexes = <String>[
-        'CREATE INDEX IF NOT EXISTS idx_messages_session_created '
-            'ON messages (sessionId, createdAt)',
-        'CREATE INDEX IF NOT EXISTS idx_messages_session_round '
-            'ON messages (sessionId, round)',
-        'CREATE INDEX IF NOT EXISTS idx_journal_session_at '
-            'ON journal_events (sessionId, at)',
-        'CREATE INDEX IF NOT EXISTS idx_usage_counters_day '
-            'ON usage_counters (day)',
-      ];
-      for (final sql in indexes) {
-        await customStatement(sql);
-      }
+      // A v1 database also predates the FTS trigger, so re-issue it.
+      await customStatement(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5("
+        "raw_text, content='messages', content_rowid='rowid')",
+      );
+      await customStatement(
+        "CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages "
+        "BEGIN INSERT INTO messages_fts(rowid, raw_text) "
+        "VALUES (new.rowid, new.raw_text); END",
+      );
+      await _ensureIndexes();
     },
     beforeOpen: (details) async {
       // Foreign keys are off by default in SQLite.
