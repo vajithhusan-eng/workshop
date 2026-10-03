@@ -131,6 +131,32 @@ class Api {
   Future<Result<Map<String, dynamic>>> sebi() =>
       get('/sebi/summary', (v) => _map(v));
 
+  /// OHLCV for the chart. `allowSynthetic` is left on for the UI so a dead
+  /// network still renders something — the page is required to display the
+  /// server's warning when it does. Anything feeding a calculation must pass
+  /// false and handle the failure instead.
+  Future<Result<Map<String, dynamic>>> candles(
+    String symbol, {
+    String interval = '1d',
+    String range = '1y',
+    bool allowSynthetic = true,
+  }) =>
+      get(
+        '/market/candles?symbol=${Uri.encodeQueryComponent(symbol)}'
+        '&interval=$interval&range=$range&allow_synthetic=$allowSynthetic',
+        (v) => _map(v),
+      );
+
+  Future<Result<Map<String, dynamic>>> quote(String symbol) => get(
+        '/market/quote?symbol=${Uri.encodeQueryComponent(symbol)}',
+        (v) => _map(v),
+      );
+
+  Future<Result<Map<String, dynamic>>> searchSymbols(String q) => get(
+        '/market/symbols?q=${Uri.encodeQueryComponent(q)}',
+        (v) => _map(v),
+      );
+
   Future<Result<List<dynamic>>> techniques() =>
       get('/techniques', (v) => (v as Map)['items'] as List<dynamic>);
 
@@ -281,3 +307,15 @@ class Api {
           },
           (v) => _map(v));
 }
+
+/// The client the pages share. One instance means one HTTP client and one
+/// dispose path; a per-widget Api would multiply connection pools.
+///
+/// Mutable on purpose: it is the seam a test swaps out with a `MockClient`.
+/// Keeping it `final` would force every widget test to reach a live backend,
+/// which in practice means the safety-critical UI states — the synthetic-data
+/// banner above all — end up with no coverage at all.
+Api api = Api();
+
+/// Restore the real client. Call from a test's `tearDown`.
+void useRealApi() => api = Api();

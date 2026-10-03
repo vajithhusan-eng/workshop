@@ -2,7 +2,12 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const api = 'http://127.0.0.1:8123/api';
+import 'pages/chart_page.dart';
+
+// The inline pages below still speak to the backend through their own helper.
+// Named `legacyApi` rather than `api` so it cannot shadow the shared `Api`
+// client from api.dart that the newer pages use.
+const legacyApi = 'http://127.0.0.1:8123/api';
 
 void main() => runApp(const OmniApp());
 
@@ -28,7 +33,7 @@ class _ShellState extends State<Shell> {
   int i = 0;
   final pages = const [
     BriefPage(),
-    LearnPage(),
+    ChartPage(),
     JournalPage(),
     AutopsyPage(),
     SebiPage()
@@ -36,14 +41,28 @@ class _ShellState extends State<Shell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('OMNIVEST · free · knowledge-only')),
+      appBar: AppBar(
+        title: const Text('OMNIVEST · free · knowledge-only'),
+        // Learn is reference material, not a daily destination, so it moved off
+        // the bar when Chart took its slot — NavigationBar caps at five.
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.menu_book),
+            tooltip: 'Learn',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const LearnPage()),
+            ),
+          ),
+        ],
+      ),
       body: pages[i],
       bottomNavigationBar: NavigationBar(
         selectedIndex: i,
         onDestinationSelected: (v) => setState(() => i = v),
         destinations: const [
           NavigationDestination(icon: Icon(Icons.wb_sunny), label: 'Brief'),
-          NavigationDestination(icon: Icon(Icons.menu_book), label: 'Learn'),
+          NavigationDestination(
+              icon: Icon(Icons.candlestick_chart), label: 'Chart'),
           NavigationDestination(icon: Icon(Icons.book), label: 'Journal'),
           NavigationDestination(icon: Icon(Icons.science), label: 'Autopsy'),
           NavigationDestination(icon: Icon(Icons.bar_chart), label: '87.7%'),
@@ -54,7 +73,7 @@ class _ShellState extends State<Shell> {
 }
 
 Future<Map> getJ(String p) async {
-  final r = await http.get(Uri.parse('$api$p'));
+  final r = await http.get(Uri.parse('$legacyApi$p'));
   return jsonDecode(r.body) as Map;
 }
 
@@ -70,7 +89,7 @@ class _BriefState extends State<BriefPage> {
       'Tap to generate your Morning Brief (deterministic watch-loop, \$0).';
   Future<void> gen() async {
     setState(() => out = '…');
-    final r = await http.post(Uri.parse('$api/brief/daily'),
+    final r = await http.post(Uri.parse('$legacyApi/brief/daily'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': 'Investor',
@@ -159,7 +178,7 @@ class _JState extends State<JournalPage> {
   String tag = 'value';
   Map? stats;
   Future<void> log() async {
-    await http.post(Uri.parse('$api/journal/entries'),
+    await http.post(Uri.parse('$legacyApi/journal/entries'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'symbol': sym.text,
@@ -215,7 +234,7 @@ class _AState extends State<AutopsyPage> {
   String out = 'Run forensics on any technique: PBO-lite + DSR-lite + MinBTL.';
   Future<void> run() async {
     setState(() => out = '…');
-    final r = await http.post(Uri.parse('$api/forensics/autopsy'),
+    final r = await http.post(Uri.parse('$legacyApi/forensics/autopsy'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': 'Momentum 12-1',

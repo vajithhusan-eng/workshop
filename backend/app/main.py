@@ -16,6 +16,7 @@ from .data_seed import (
 from .guardrails import check_output, brief_disclaimer, ADVISER_MODE
 from .forensics import autopsy, momentum_crash_risk, pbo_cscv
 from .execution import audit_orders, classify_order
+from .market import get_candles, quote, symbol_search, MarketError
 from .watchloop import RULES, RULE_LIST, detect, rules_digest
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "omnivest_journal.json")
@@ -439,6 +440,53 @@ def forensics_pbo(req: PboReq):
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/market/candles")
+def market_candles(
+    symbol: str,
+    interval: str = "1d",
+    range: str = "1y",
+    allow_synthetic: bool = True,
+):
+    """OHLCV for the chart. Returns provenance — read `is_synthetic`.
+
+    `allow_synthetic` exists so that a caller feeding a calculation can demand
+    truth and get a failure instead of an invented series. The UI leaves it on
+    so the chart still renders when the network is down, and is then required to
+    display the warning rather than quietly plotting fiction.
+    """
+    try:
+        return get_candles(symbol, interval, range, allow_synthetic=allow_synthetic)
+    except MarketError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@app.get("/api/market/quote")
+def market_quote(symbol: str):
+    """Last close and change, derived from the same series the chart draws.
+
+    Derived rather than fetched separately so the header can never disagree
+    with the chart underneath it.
+    """
+    try:
+        return quote(symbol)
+    except MarketError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@app.get("/api/market/symbols")
+def market_symbols(q: str = "", limit: int = 25):
+    """Symbol search over a small built-in universe.
+
+    A search box over live quote data is an entertainment feature. This one
+    resolves the names people actually type, and says plainly when it has no
+    answer rather than returning a fuzzy guess dressed as a match.
+    """
+    try:
+        return symbol_search(q, limit)
+    except MarketError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @app.get("/api/forensics/crowding")
