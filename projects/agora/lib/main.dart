@@ -1,16 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'app.dart';
 
 void main() {
-  runApp(const Bootstrap());
-}
-
-class Bootstrap extends StatelessWidget {
-  const Bootstrap({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Agora'))),
-    );
-  }
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const ProviderScope(child: AgoraApp()));
 }
