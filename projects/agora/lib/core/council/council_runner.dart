@@ -11,6 +11,7 @@ import '../cdp/cdp_client.dart';
 import '../chrome/chrome_launcher.dart';
 import '../orchestration/budget.dart';
 import '../orchestration/orchestrator.dart';
+import '../util/hashing.dart';
 import '../logging.dart';
 import 'tab_pool.dart';
 import '../../data/session_repository.dart';
@@ -255,15 +256,42 @@ class CouncilRunner {
         meta: meta,
       );
       await repo.countMessage(event.kind, v.rawText.length);
+      // The hash, not the text: a journal row is an index entry, and the full
+      // verbatim already lives in `messages`. Replay compares hashes.
+      await repo.journal(
+        sessionId,
+        'capture',
+        agentId: agentId,
+        payload: <String, dynamic>{
+          'round': event.round,
+          'kind': event.kind,
+          'hash': v.contentHash ?? contentHash(v.rawText),
+          'chars': v.rawText.length,
+        },
+      );
       return;
     }
     if (event is PacketDispatched) {
+      final targetId = kindToAgentId[event.target] ?? event.target;
       await repo.recordPacket(
         sessionId: sessionId,
         round: 0,
-        targetAgentId: kindToAgentId[event.target] ?? event.target,
+        targetAgentId: targetId,
         strategy: event.packet.strategy.name,
         body: event.packet.body,
+      );
+      // The Time Machine needs the turn itself, not just the packet record:
+      // a dispatch row is the one thing a replay can reproduce verbatim.
+      await repo.journal(
+        sessionId,
+        'dispatch',
+        agentId: targetId,
+        payload: <String, dynamic>{
+          'round': event.round,
+          'target': event.target,
+          'strategy': event.packet.strategy.name,
+          'body': event.packet.body,
+        },
       );
       return;
     }
