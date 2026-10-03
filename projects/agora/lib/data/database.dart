@@ -277,25 +277,22 @@ class AgoraDb extends _$AgoraDb {
         await m.addColumn(sessions, sessions.archived);
       }
       // Indexes for the queries the UI runs on every keystroke and every paint.
-      // Safe to re-issue: SQLite treats an identical index as a no-op.
-      await m.createIndex('idx_messages_session_created', messages, columns: [
-        messages.sessionId,
-        messages.createdAt,
-      ]);
-      await m.createIndex(
-        'idx_messages_session_round',
-        messages,
-        columns: [messages.sessionId, messages.round],
-      );
-      await m.createIndex('idx_journal_session_at', journalEvents, columns: [
-        journalEvents.sessionId,
-        journalEvents.at,
-      ]);
-      await m.createIndex(
-        'idx_usage_counters_day',
-        usageCounters,
-        columns: [usageCounters.day],
-      );
+      // drift 2.35's Migrator has no createIndex(name, table, columns:) helper,
+      // so these are plain idempotent DDL. IF NOT EXISTS makes re-running the
+      // migration a no-op.
+      const indexes = <String>[
+        'CREATE INDEX IF NOT EXISTS idx_messages_session_created '
+            'ON messages (sessionId, createdAt)',
+        'CREATE INDEX IF NOT EXISTS idx_messages_session_round '
+            'ON messages (sessionId, round)',
+        'CREATE INDEX IF NOT EXISTS idx_journal_session_at '
+            'ON journal_events (sessionId, at)',
+        'CREATE INDEX IF NOT EXISTS idx_usage_counters_day '
+            'ON usage_counters (day)',
+      ];
+      for (final sql in indexes) {
+        await customStatement(sql);
+      }
     },
     beforeOpen: (details) async {
       // Foreign keys are off by default in SQLite.
