@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:path/path.dart' as p;
 
 import '../adapters/adapter_config.dart';
 import '../adapters/web_agent_adapter.dart';
@@ -326,6 +329,33 @@ class CouncilRunner {
       );
     }
     return cfg;
+  }
+
+  /// Screenshots every live tab into the vault and returns kind -> file path.
+  ///
+  /// Only meaningful while a council is running: the tabs belong to the run and
+  /// are closed in `_teardown`, so there is nothing to photograph between runs.
+  /// A tab that refuses the capture is skipped, not fatal — the transcript is
+  /// the record, the pixels are the corroboration.
+  Future<Map<String, String>> snapshotAll() async {
+    final pool = _pool;
+    if (pool == null) return const <String, String>{};
+    final dir = Directory(p.join(AgoraPaths.vaultDir, sessionId));
+    await dir.create(recursive: true);
+    final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final out = <String, String>{};
+    for (final kind in pool.openKinds) {
+      final Uint8List? png = await pool.capture(kind);
+      if (png == null) continue;
+      final file = File(p.join(dir.path, 'snapshot-$stamp-$kind.png'));
+      await file.writeAsBytes(png, flush: true);
+      out[kind] = file.path;
+    }
+    if (out.isNotEmpty) {
+      await repo.journal(sessionId, 'snapshot', payload: {'files': out});
+      _note('snapshot: ${out.length} tab(s) captured');
+    }
+    return out;
   }
 
   Future<void> _teardown() async {

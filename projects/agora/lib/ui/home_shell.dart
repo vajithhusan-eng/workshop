@@ -17,14 +17,19 @@ class HomeShell extends StatelessWidget {
   const HomeShell({super.key, required this.c});
   final AgoraController c;
 
-  /// Esc is the interrupt. Until the Chrome bridge is wired there is nothing
-  /// running to interrupt, so say so rather than pretending otherwise.
-  static void _stopCouncil(BuildContext context) {
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(
-        content: Text('Nothing is running — Esc is the interrupt.'),
-      ),
-    );
+  /// Esc is the interrupt. It only does anything while a council is live;
+  /// otherwise there is genuinely nothing to stop, so say so rather than
+  /// pretending otherwise.
+  static void _stopCouncil(AgoraController c, BuildContext context) {
+    if (!c.councilRunning) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('Nothing is running — Esc is the interrupt.'),
+        ),
+      );
+      return;
+    }
+    c.interruptCouncil();
   }
 
   @override
@@ -39,7 +44,11 @@ class HomeShell extends StatelessWidget {
             openPalette,
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true): openPalette,
         const SingleActivator(LogicalKeyboardKey.escape): () =>
-            _stopCouncil(context),
+            _stopCouncil(c, context),
+        const SingleActivator(LogicalKeyboardKey.keyS, control: true): () =>
+            c.snapshot(),
+        const SingleActivator(LogicalKeyboardKey.keyS, meta: true): () =>
+            c.snapshot(),
       },
       child: Focus(
         autofocus: true,

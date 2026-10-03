@@ -80,4 +80,15 @@ void main() {
     await settle();
     expect(c.current!.prompt.trim(), isEmpty);
   });
+
+  test(
+    'snapshot with no live council says why instead of failing silently',
+    () async {
+      await c.newSession(prompt: 'p', title: 't');
+      await settle();
+      expect(await c.snapshot(), isFalse);
+      expect(c.councilError, contains('No live tabs'));
+      expect(c.lastSnapshot, isNull);
+    },
+  );
 }

@@ -364,6 +364,15 @@ class CouncilPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Text('Last run stopped: ${c.councilStop}', style: AgoraTheme.caption),
         ],
+        if (c.lastSnapshot != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Last snapshot: ${c.lastSnapshot}',
+            style: AgoraTheme.caption,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
         const SizedBox(height: 6),
         Row(
           children: [
@@ -380,14 +389,12 @@ class CouncilPanel extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             IconButton(
-              tooltip: 'Snapshot (Ctrl+S)',
+              tooltip: 'Snapshot every live tab into the vault (Ctrl+S)',
               icon: const Icon(Icons.camera_alt_outlined, size: 16),
               color: AgoraTheme.dim,
-              onPressed: () => ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                const SnackBar(
-                  content: Text('Snapshotting needs a live browser tab.'),
-                ),
-              ),
+              // Disabled rather than a no-op: the tabs belong to a run, so there
+              // is genuinely nothing to capture between councils.
+              onPressed: c.councilRunning ? () => c.snapshot() : null,
             ),
           ],
         ),

@@ -15,6 +15,7 @@ import 'dart:io';
 
 import 'package:agora/core/chrome/chrome_launcher.dart';
 import 'package:agora/core/cdp/cdp_client.dart';
+import 'package:agora/core/council/tab_pool.dart';
 
 Future<void> main(List<String> args) async {
   // `args` is unused; accepting it keeps the door open for a --serve mode
@@ -124,6 +125,56 @@ Future<void> main(List<String> args) async {
   } on Object catch (e) {
     print('  (Target.getTargets failed: $e)');
   }
+
+  // Exercise TabPool itself, not just the raw calls above. The pool is the code
+  // Agora actually ships, so a probe that only proves the CDP verbs would still
+  // let a bug in TabPool.capture reach the vault unchecked.
+  print('\nTabPool:');
+  final pool = TabPool(client);
+  await check('TabPool.open x2', () async {
+    await pool.open('alpha', url: 'data:text/html,<h1>alpha</h1>');
+    await pool.open('beta', url: 'data:text/html,<h1>beta</h1>');
+    return '${pool.length} tabs open';
+  });
+  await check('TabPool.open is idempotent', () async {
+    final again = await pool.open('alpha');
+    if (again != pool.targetOf('alpha')) {
+      throw StateError('reopen returned a different target: $again');
+    }
+    return 'alpha -> ${again.substring(0, 8)}';
+  });
+  await check('TabPool.capture returns a real PNG', () async {
+    final png = await pool.capture('alpha');
+    if (png == null || png.length < 8) {
+      throw StateError('capture returned ${png?.length} bytes');
+    }
+    // PNG magic number: proves the bytes are an image, not an error page.
+    const magic = <int>[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    for (var i = 0; i < magic.length; i++) {
+      if (png[i] != magic[i]) {
+        throw StateError('not a PNG at byte $i: ${png[i]}');
+      }
+    }
+    return '${png.length} bytes, PNG magic verified';
+  });
+  await check(
+    'TabPool.capture on an unknown kind is null, not a throw',
+    () async {
+      final png = await pool.capture('gamma');
+      if (png != null)
+        throw StateError('expected null, got ${png.length} bytes');
+      return 'null';
+    },
+  );
+  await check('TabPool.bringToFront', () async {
+    await pool.bringToFront('beta');
+    return 'accepted';
+  });
+  await check('TabPool.closeAll leaves nothing behind', () async {
+    await pool.closeAll();
+    if (pool.length != 0) throw StateError('${pool.length} tabs still tracked');
+    return '${pool.length} tabs tracked';
+  });
 
   for (final t in [targetA, targetB]) {
     await _send(

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:agora/core/cdp/cdp_client.dart';
 
 /// One Chrome tab per AI, created and destroyed over CDP.
@@ -93,6 +96,26 @@ class TabPool {
       );
     } on Object {
       // The tab may already be gone if Chrome crashed or the user closed it.
+    }
+  }
+
+  /// PNG bytes of the tab as it currently looks, or null if the tab is gone or
+  /// Chrome refuses. A snapshot is evidence, not a correctness requirement, so
+  /// this never throws — the same reasoning as [bringToFront].
+  Future<Uint8List?> capture(String kind) async {
+    final targetId = _targets[kind];
+    if (targetId == null) return null;
+    try {
+      final res =
+          await _client.send(
+                'Page.captureScreenshot',
+                params: <String, dynamic>{'format': 'png'},
+                sessionId: await _sessionFor(targetId),
+              )
+              as Map<String, dynamic>;
+      return base64Decode(res['data'] as String);
+    } on Object {
+      return null;
     }
   }
 

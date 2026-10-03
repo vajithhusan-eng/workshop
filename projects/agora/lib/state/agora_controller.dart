@@ -389,4 +389,32 @@ class AgoraController extends ChangeNotifier {
   /// Hard-stops the debate. The orchestrator records the stop as a user
   /// interrupt so the session shows why it ended rather than just ending.
   void interruptCouncil() => _runner?.interrupt();
+
+  String? _lastSnapshot;
+  String? get lastSnapshot => _lastSnapshot;
+
+  /// Photographs every live tab into the vault. The tabs live and die with a
+  /// run, so this is only possible mid-council — which is also the only time a
+  /// snapshot tells you anything you cannot already read in the transcript.
+  Future<bool> snapshot() async {
+    final runner = _runner;
+    if (runner == null || !runner.isRunning) {
+      _councilError = 'No live tabs to photograph. Start a council first.';
+      notifyListeners();
+      return false;
+    }
+    try {
+      final files = await runner.snapshotAll();
+      if (files.isEmpty) {
+        _councilError = 'No tab answered the screenshot request.';
+      } else {
+        _councilError = null;
+        _lastSnapshot = files.values.first;
+      }
+    } on Object catch (e) {
+      _councilError = 'Snapshot failed: $e';
+    }
+    notifyListeners();
+    return _councilError == null;
+  }
 }
