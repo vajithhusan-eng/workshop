@@ -98,70 +98,68 @@ class _OrdersPageState extends State<OrdersPage> {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.only(bottom: 24),
-    children: [
-      _input(),
-      if (_error != null) ErrorBox(_error!),
-      if (_result != null) ..._render(_result!),
-    ],
-  );
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          _input(),
+          if (_error != null) ErrorBox(_error!),
+          if (_result != null) ..._render(_result!),
+        ],
+      );
 
   Widget _input() => SectionCard(
-    title: 'What did your orders actually cost you?',
-    subtitle:
-        'Paste executions from your broker. Keys: symbol, side, '
-        'limit_price, fill_price, bid, ask.',
-    children: [
-      NumField(
-        label: 'Portfolio value (₹)',
-        controller: _pv,
-        fallback: 500000,
-        decimals: 0,
-        helper: 'Used to turn basis points into rupees. Optional.',
-      ),
-      const SizedBox(height: 10),
-      NumField(
-        label: 'Orders per year',
-        controller: _opy,
-        fallback: 60,
-        decimals: 0,
-        helper: 'Turns a per-order cost into an annual drag. Optional.',
-      ),
-      const SizedBox(height: 12),
-      TextField(
-        controller: _json,
-        maxLines: 10,
-        minLines: 5,
-        style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
-        decoration: const InputDecoration(
-          labelText: 'Executions (JSON array)',
-          border: OutlineInputBorder(),
-          alignLabelWithHint: true,
-        ),
-      ),
-      const SizedBox(height: 12),
-      Row(
+        title: 'What did your orders actually cost you?',
+        subtitle: 'Paste executions from your broker. Keys: symbol, side, '
+            'limit_price, fill_price, bid, ask.',
         children: [
-          Expanded(
-            child: RunButton(
-              onPressed: _run,
-              busy: _busy,
-              busyLabel: 'Measuring…',
-              label: 'Audit my execution',
-              icon: Icons.receipt_long,
+          NumField(
+            label: 'Portfolio value (₹)',
+            controller: _pv,
+            fallback: 500000,
+            decimals: 0,
+            helper: 'Used to turn basis points into rupees. Optional.',
+          ),
+          const SizedBox(height: 10),
+          NumField(
+            label: 'Orders per year',
+            controller: _opy,
+            fallback: 60,
+            decimals: 0,
+            helper: 'Turns a per-order cost into an annual drag. Optional.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _json,
+            maxLines: 10,
+            minLines: 5,
+            style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
+            decoration: const InputDecoration(
+              labelText: 'Executions (JSON array)',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
             ),
           ),
-          const SizedBox(width: 10),
-          TextButton(
-            onPressed: _busy
-                ? null
-                : () => setState(() => _json.text = _sample),
-            child: const Text('Example'),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: RunButton(
+                  onPressed: _run,
+                  busy: _busy,
+                  busyLabel: 'Measuring…',
+                  label: 'Audit my execution',
+                  icon: Icons.receipt_long,
+                ),
+              ),
+              const SizedBox(width: 10),
+              TextButton(
+                onPressed:
+                    _busy ? null : () => setState(() => _json.text = _sample),
+                child: const Text('Example'),
+              ),
+            ],
           ),
         ],
-      ),
-    ],
-  );
+      );
 
   List<Widget> _render(Map<String, dynamic> r) {
     final bySymbol = (r['by_symbol'] as Map?) ?? const {};
@@ -177,14 +175,12 @@ class _OrdersPageState extends State<OrdersPage> {
           severity: r['verdict'],
           headline: '${r['verdict']}',
           detail: '${r['narrative']}',
-          source:
-              'Barber, Lee, Liu & Odean: "Do Day Traders Rationally Learn '
+          source: 'Barber, Lee, Liu & Odean: "Do Day Traders Rationally Learn '
               'About Their Ability?" (2000); "Rational Trading and the '
               'Irrationality of the Crowd" (2004); "How Individual Traders Can '
               'Profit from the Options Markets" (2009).',
         ),
       ),
-
       SectionCard(
         title: 'In rupees, not basis points',
         subtitle: 'A drag you can name is a drag you can decide about.',
@@ -204,7 +200,7 @@ class _OrdersPageState extends State<OrdersPage> {
           const Divider(height: 20),
           Kv(
             'Aggressive share',
-            '${fmt(r['aggressive_share'], places: 0, suffix: '%')}',
+            fmt(r['aggressive_share'], places: 0, suffix: '%'),
             bold: true,
           ),
           Kv(
@@ -214,14 +210,13 @@ class _OrdersPageState extends State<OrdersPage> {
           const Divider(height: 20),
           StatTile(
             label: 'Annualised drag on your portfolio',
-            value:
-                '${fmt(r['annualised_drag_bps'], places: 0)} bps'
+            value: '${fmt(r['annualised_drag_bps'], places: 0)} bps'
                 '${(dragRupees ?? 0) != 0 ? '  ·  ${rupees(dragRupees)}' : ''}',
             severity: ((r['annualised_drag_bps'] as num?) ?? 0) >= 100
                 ? 'HIGH'
                 : ((r['annualised_drag_bps'] as num?) ?? 0) >= 25
-                ? 'MEDIUM'
-                : 'LOW',
+                    ? 'MEDIUM'
+                    : 'LOW',
           ),
           if (r['annualisation_assumed'] == false)
             Padding(
@@ -247,7 +242,6 @@ class _OrdersPageState extends State<OrdersPage> {
           ],
         ],
       ),
-
       if (nUnmeasurable > 0)
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 2, 12, 0),
@@ -262,7 +256,6 @@ class _OrdersPageState extends State<OrdersPage> {
                 'picture resolves.',
           ),
         ),
-
       if (bySymbol.isNotEmpty)
         SectionCard(
           title: 'Where it went',
@@ -278,7 +271,6 @@ class _OrdersPageState extends State<OrdersPage> {
                 ),
           ],
         ),
-
       if (perOrder.isNotEmpty)
         SectionCard(
           title: 'Order by order',

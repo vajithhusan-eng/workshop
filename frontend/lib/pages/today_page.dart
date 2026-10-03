@@ -52,8 +52,9 @@ class _TodayPageState extends State<TodayPage> {
     List<dynamic> events;
     try {
       final decoded = jsonDecode(_events.text);
-      if (decoded is! List)
+      if (decoded is! List) {
         throw const FormatException('expected a JSON array');
+      }
       events = decoded;
     } catch (e) {
       setState(() => _error = 'Events must be a JSON array.\n\n$e');
@@ -90,11 +91,11 @@ class _TodayPageState extends State<TodayPage> {
   }
 
   Future<void> _briefNow() async {
-    List<dynamic> events;
+    List<Map<String, dynamic>> events;
     try {
       events = (jsonDecode(_events.text) as List).cast<Map<String, dynamic>>();
     } catch (_) {
-      events = const [];
+      events = const <Map<String, dynamic>>[];
     }
     setState(() => _busy = true);
     final r = await widget.api.brief(events: events);
@@ -111,77 +112,77 @@ class _TodayPageState extends State<TodayPage> {
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.only(bottom: 24),
-    children: [
-      _input(),
-      if (_error != null) ErrorBox(_error!),
-      if (_findings != null) _findingsCard(_findings!),
-      if (_brief != null) _briefCard(_brief!),
-      _rulesCard(),
-    ],
-  );
+        padding: const EdgeInsets.only(bottom: 24),
+        children: [
+          _input(),
+          if (_error != null) ErrorBox(_error!),
+          if (_findings != null) _findingsCard(_findings!),
+          if (_brief != null) _briefCard(_brief!),
+          _rulesCard(),
+        ],
+      );
 
   Widget _input() => SectionCard(
-    title: 'What happened, and what did you promise yourself?',
-    subtitle:
-        'The circle is the box that matters. Declaring it is the only way any '
-        'rule can hold you to it — we will not guess a boundary on your behalf.',
-    children: [
-      TextField(
-        controller: _circle,
-        decoration: const InputDecoration(
-          labelText: 'My circle of competence',
-          helperText: 'Comma-separated sectors or industries.',
-          border: OutlineInputBorder(),
-          isDense: true,
-        ),
-      ),
-      const SizedBox(height: 10),
-      NumField(
-        label: 'Portfolio invested (₹)',
-        controller: _invested,
-        fallback: 500000,
-        decimals: 0,
-        helper: 'Used by the concentration and cost rules.',
-      ),
-      const SizedBox(height: 12),
-      TextField(
-        controller: _events,
-        maxLines: 7,
-        minLines: 3,
-        style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
-        decoration: const InputDecoration(
-          labelText: 'Events (symbol, move_pct, sector_move_pct, holding)',
-          border: OutlineInputBorder(),
-          alignLabelWithHint: true,
-        ),
-      ),
-      const SizedBox(height: 12),
-      Row(
+        title: 'What happened, and what did you promise yourself?',
+        subtitle:
+            'The circle is the box that matters. Declaring it is the only way any '
+            'rule can hold you to it — we will not guess a boundary on your behalf.',
         children: [
-          Expanded(
-            flex: 3,
-            child: RunButton(
-              onPressed: _run,
-              busy: _busy,
-              busyLabel: 'Checking…',
-              label: 'Run the 12 rules',
-              icon: Icons.radar,
+          TextField(
+            controller: _circle,
+            decoration: const InputDecoration(
+              labelText: 'My circle of competence',
+              helperText: 'Comma-separated sectors or industries.',
+              border: OutlineInputBorder(),
+              isDense: true,
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
-            child: OutlinedButton.icon(
-              onPressed: _busy ? null : _briefNow,
-              icon: const Icon(Icons.wb_sunny_outlined, size: 17),
-              label: const Text('Brief'),
+          const SizedBox(height: 10),
+          NumField(
+            label: 'Portfolio invested (₹)',
+            controller: _invested,
+            fallback: 500000,
+            decimals: 0,
+            helper: 'Used by the concentration and cost rules.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _events,
+            maxLines: 7,
+            minLines: 3,
+            style: const TextStyle(fontSize: 11.5, fontFamily: 'monospace'),
+            decoration: const InputDecoration(
+              labelText: 'Events (symbol, move_pct, sector_move_pct, holding)',
+              border: OutlineInputBorder(),
+              alignLabelWithHint: true,
             ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: RunButton(
+                  onPressed: _run,
+                  busy: _busy,
+                  busyLabel: 'Checking…',
+                  label: 'Run the 12 rules',
+                  icon: Icons.radar,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 2,
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : _briefNow,
+                  icon: const Icon(Icons.wb_sunny_outlined, size: 17),
+                  label: const Text('Brief'),
+                ),
+              ),
+            ],
           ),
         ],
-      ),
-    ],
-  );
+      );
 
   Widget _findingsCard(Map<String, dynamic> r) {
     final fired =
@@ -209,8 +210,7 @@ class _TodayPageState extends State<TodayPage> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: VerdictBanner(
                     severity: f['severity'],
-                    headline:
-                        '${f['rule']}'
+                    headline: '${f['rule']}'
                         '${f['symbol'] != null ? ' · ${f['symbol']}' : ''}',
                     detail: '${f['note']}',
                   ),
@@ -226,80 +226,81 @@ class _TodayPageState extends State<TodayPage> {
   }
 
   Widget _briefCard(Map<String, dynamic> b) => SectionCard(
-    title: 'Morning brief',
-    subtitle: b['source']?.toString(),
-    children: [
-      SelectableText(
-        '${b['brief'] ?? b['text'] ?? '(empty)'}',
-        style: const TextStyle(height: 1.45),
-      ),
-      if (b['disclaimers'] is List)
-        Padding(
-          padding: const EdgeInsets.only(top: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final d in (b['disclaimers'] as List))
-                Text(
-                  '· ${d.toString()}',
-                  style: const TextStyle(fontSize: 11.5),
-                ),
-            ],
+        title: 'Morning brief',
+        subtitle: b['source']?.toString(),
+        children: [
+          SelectableText(
+            '${b['brief'] ?? b['text'] ?? '(empty)'}',
+            style: const TextStyle(height: 1.45),
           ),
-        ),
-    ],
-  );
+          if (b['disclaimers'] is List)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final d in (b['disclaimers'] as List))
+                    Text(
+                      '· ${d.toString()}',
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      );
 
   Widget _rulesCard() => SectionCard(
-    title: 'The twelve rules',
-    subtitle:
-        'All of them, with the reason each exists. A rule you cannot justify '
-        'is a rule you should switch off.',
-    children: [
-      AsyncSection<Map<String, dynamic>>(
-        future: widget.api.watchRules,
-        loadingLabel: 'Loading rules',
-        builder: (context, r) {
-          final items =
-              (r['items'] as List?)?.cast<Map<String, dynamic>>() ?? const [];
-          if (items.isEmpty) return const EmptyBox('No rules registered.');
-          return Column(
-            children: [
-              for (final it in items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${it['id']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
+        title: 'The twelve rules',
+        subtitle:
+            'All of them, with the reason each exists. A rule you cannot justify '
+            'is a rule you should switch off.',
+        children: [
+          AsyncSection<Map<String, dynamic>>(
+            future: widget.api.watchRules,
+            loadingLabel: 'Loading rules',
+            builder: (context, r) {
+              final items =
+                  (r['items'] as List?)?.cast<Map<String, dynamic>>() ??
+                      const [];
+              if (items.isEmpty) return const EmptyBox('No rules registered.');
+              return Column(
+                children: [
+                  for (final it in items)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${it['id']}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${it['desc']}',
+                            style: const TextStyle(fontSize: 12.5),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            '${it['basis']}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontStyle: FontStyle.italic,
+                              color: Theme.of(context).colorScheme.outline,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${it['desc']}',
-                        style: const TextStyle(fontSize: 12.5),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${it['basis']}',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontStyle: FontStyle.italic,
-                          color: Theme.of(context).colorScheme.outline,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
-    ],
-  );
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      );
 }

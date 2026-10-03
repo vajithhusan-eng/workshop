@@ -1,16 +1,18 @@
-.PHONY: help backend frontend setup clean push test test-unit test-api verify
+.PHONY: help backend frontend setup clean push test test-unit test-api test-frontend verify lint
 
 help:
 	@echo "WORKSHOP Commands:"
-	@echo "  make backend     - Start finance backend (:8123)"
-	@echo "  make frontend    - Start flutter web (:8081)"
-	@echo "  make test        - Run all tests (unit + api)"
-	@echo "  make test-unit   - Forensic math + watch-loop rules (no server needed)"
-	@echo "  make test-api    - API smoke test (needs backend running)"
-	@echo "  make verify      - test-unit + start backend + test-api"
-	@echo "  make setup       - Setup all projects"
-	@echo "  make clean       - Clean all build artifacts"
-	@echo "  make push        - Auto-push all changes to GitHub"
+	@echo "  make backend      - Start finance backend (:8123)"
+	@echo "  make frontend     - Start flutter web (:8081)"
+	@echo "  make test         - Run all tests (unit + api + frontend)"
+	@echo "  make test-unit    - Forensic math + watch-loop rules (no server needed)"
+	@echo "  make test-api     - API smoke test (needs backend running)"
+	@echo "  make test-frontend- Flutter analyze + widget/wire tests (no server needed)"
+	@echo "  make lint         - flutter analyze (must be clean)"
+	@echo "  make verify       - test-unit + test-frontend + boot backend + test-api"
+	@echo "  make setup        - Setup all projects"
+	@echo "  make clean        - Clean all build artifacts"
+	@echo "  make push         - Auto-push all changes to GitHub"
 
 push:
 	@echo "🚀 Pushing to GitHub..."
@@ -28,7 +30,7 @@ frontend:
 # wiring is wrong, the app is confidently lying to people about their money, so
 # these run on every change and are not optional decoration.
 
-test: test-unit test-api
+test: test-unit test-api test-frontend
 
 # Pure math, no server. Safe to run anywhere.
 test-unit:
@@ -46,8 +48,20 @@ test-api:
 
 # One-shot: unit tests, boot the backend, API tests, tear down. This is the
 # gate to run before committing.
-# Pre-commit gate: unit math, then boot a real backend and hit it over HTTP.
-verify: test-unit
+# Analyzer plus the widget + wire-contract tests. No server needed.
+# The wire tests assert the frontend sends the keys the backend actually
+# accepts — that pair has already drifted once and silently, so it is gated.
+test-frontend: lint
+	@echo "── flutter tests ──"
+	cd frontend && flutter test
+
+lint:
+	@echo "── flutter analyze ──"
+	cd frontend && flutter analyze
+
+# Pre-commit gate: unit math, frontend lint+tests, then boot a real backend
+# and hit it over HTTP.
+verify: test-unit test-frontend
 	@bash scripts/verify_api.sh
 
 setup:

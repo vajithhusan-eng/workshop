@@ -25,8 +25,10 @@ const String apiBase = String.fromEnvironment(
 
 /// A successful or failed call. Deliberately not an exception.
 class Result<T> {
-  Result.ok(T value) : value = value, error = null, status = 200;
-  Result.fail(String error, [this.status = 0]) : value = null, error = error;
+  Result.ok(this.value)
+      : error = null,
+        status = 200;
+  Result.fail(this.error, [this.status = 0]) : value = null;
 
   final T? value;
   final String? error;
@@ -117,8 +119,7 @@ class Api {
     }
   }
 
-  String _offline(Object e) =>
-      'Cannot reach the backend at $apiBase.\n'
+  String _offline(Object e) => 'Cannot reach the backend at $apiBase.\n'
       'Start it with:  cd backend && ./.venv/bin/python run.py\n\n'
       '($e)';
 
@@ -151,10 +152,11 @@ class Api {
   Future<Result<Map<String, dynamic>>> crowding({
     double comomentum = 0.5,
     double vol = 0.5,
-  }) => get(
-    '/forensics/crowding?comomentum=$comomentum&vol_percentile=$vol',
-    (v) => _map(v),
-  );
+  }) =>
+      get(
+        '/forensics/crowding?comomentum=$comomentum&vol_percentile=$vol',
+        (v) => _map(v),
+      );
 
   // ── writes ───────────────────────────────────────────────────────────────
 
@@ -173,18 +175,22 @@ class Api {
     double kurtosis = 3,
     double? tStat,
     int? nTests,
-  }) => post('/forensics/autopsy', {
-    'technique': technique,
-    'sharpe_ratio': sharpe,
-    'n_trials': trials,
-    'n_obs': nObs,
-    'backtest_excess_bps': backtestBps,
-    'live_excess_bps': liveBps,
-    'skew': skew,
-    'kurtosis': kurtosis,
-    if (tStat != null) 't_stat': tStat,
-    if (nTests != null) 'n_tests': nTests,
-  }, (v) => _map(v));
+  }) =>
+      post(
+          '/forensics/autopsy',
+          {
+            'technique': technique,
+            'sharpe_ratio': sharpe,
+            'n_trials': trials,
+            'n_obs': nObs,
+            'backtest_excess_bps': backtestBps,
+            'live_excess_bps': liveBps,
+            'skew': skew,
+            'kurtosis': kurtosis,
+            if (tStat != null) 't_stat': tStat,
+            if (nTests != null) 'n_tests': nTests,
+          },
+          (v) => _map(v));
 
   Future<Result<Map<String, dynamic>>> watchDetect({
     List<Map<String, dynamic>> events = const [],
@@ -194,20 +200,26 @@ class Api {
     List<Map<String, dynamic>> positions = const [],
     double? portfolioInvested,
     double? costsYtd,
-  }) => post('/watch/detect', {
-    'events': events,
-    'as_of': asOf,
-    'circle': circle,
-    'journal': journal,
-    'positions': positions,
-    if (portfolioInvested != null) 'portfolio_invested': portfolioInvested,
-    if (costsYtd != null) 'costs_ytd': costsYtd,
-  }, (v) => _map(v));
+  }) =>
+      post(
+          '/watch/detect',
+          {
+            'events': events,
+            'as_of': asOf,
+            'circle': circle,
+            'journal': journal,
+            'positions': positions,
+            if (portfolioInvested != null)
+              'portfolio_invested': portfolioInvested,
+            if (costsYtd != null) 'costs_ytd': costsYtd,
+          },
+          (v) => _map(v));
 
   Future<Result<Map<String, dynamic>>> brief({
     String name = 'Investor',
     List<Map<String, dynamic>> events = const [],
-  }) => post('/brief/daily', {'name': name, 'events': events}, (v) => _map(v));
+  }) =>
+      post('/brief/daily', {'name': name, 'events': events}, (v) => _map(v));
 
   Future<Result<Map<String, dynamic>>> addJournalEntry({
     required String symbol,
@@ -217,15 +229,19 @@ class Api {
     double price = 0,
     String tag = 'value',
     String invalidation = '',
-  }) => post('/journal/entries', {
-    'symbol': symbol,
-    'side': side,
-    'qty': qty,
-    'price': price,
-    'tag': tag,
-    'why': why,
-    'invalidation': invalidation,
-  }, (v) => _map(v));
+  }) =>
+      post(
+          '/journal/entries',
+          {
+            'symbol': symbol,
+            'side': side,
+            'qty': qty,
+            'price': price,
+            'tag': tag,
+            'why': why,
+            'invalidation': invalidation,
+          },
+          (v) => _map(v));
 
   /// Order keys are the ones `execution.classify_order()` reads:
   /// symbol, side, order_type, bid, ask, reference_price, limit_price,
@@ -235,24 +251,33 @@ class Api {
     double? portfolioValue,
     double? ordersPerYear,
     double fillProbability = 0.30,
-  }) => post('/execution/audit', {
-    'orders': orders,
-    if (portfolioValue != null) 'portfolio_value': portfolioValue,
-    if (ordersPerYear != null) 'orders_per_year': ordersPerYear,
-    'fill_probability': fillProbability,
-  }, (v) => _map(v));
+  }) =>
+      post(
+          '/execution/audit',
+          {
+            'orders': orders,
+            if (portfolioValue != null) 'portfolio_value': portfolioValue,
+            if (ordersPerYear != null) 'orders_per_year': ordersPerYear,
+            'fill_probability': fillProbability,
+          },
+          (v) => _map(v));
 
   Future<Result<Map<String, dynamic>>> classifyOrder(
     Map<String, dynamic> order,
-  ) => post('/execution/classify', {'order': order}, (v) => _map(v));
+  ) =>
+      post('/execution/classify', {'order': order}, (v) => _map(v));
 
   Future<Result<Map<String, dynamic>>> pbo({
     required List<List<double>> returnsMatrix,
     String name = 'screen',
     int nSplits = 8,
-  }) => post('/forensics/pbo', {
-    'name': name,
-    'returns_matrix': returnsMatrix,
-    'n_splits': nSplits,
-  }, (v) => _map(v));
+  }) =>
+      post(
+          '/forensics/pbo',
+          {
+            'name': name,
+            'returns_matrix': returnsMatrix,
+            'n_splits': nSplits,
+          },
+          (v) => _map(v));
 }

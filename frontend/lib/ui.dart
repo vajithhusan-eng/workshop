@@ -33,22 +33,43 @@ Sev sevFrom(Object? raw) {
 }
 
 Color sevColor(Sev s, ColorScheme cs) => switch (s) {
-  Sev.pass => const Color(0xFF1B7F4B),
-  Sev.warn => const Color(0xFFB26A00),
-  Sev.alert => const Color(0xFFC2410C),
-  Sev.bad => cs.error,
-  Sev.info => cs.primary,
-  Sev.unknown => cs.outline,
-};
+      Sev.pass => const Color(0xFF1B7F4B),
+      Sev.warn => const Color(0xFFB26A00),
+      Sev.alert => const Color(0xFFC2410C),
+      Sev.bad => cs.error,
+      Sev.info => cs.primary,
+      Sev.unknown => cs.outline,
+    };
+
+/// The severity word as it will be rendered: the machine's own label, upper
+/// cased and length-capped. We deliberately do *not* remap it to our internal
+/// bucket vocabulary — if a detection rule says SEVERE, the user reads SEVERE,
+/// because inventing a softer word here is precisely the laundering this app
+/// is built to catch. Unrecognised input renders as UNKNOWN rather than
+/// silently inheriting a reassuring bucket. Takes `Object?` because JSON has
+/// no values: `{"severity": null}` must render UNKNOWN, not crash the screen.
+String _sevWord(Object? raw) {
+  final s = (raw ?? '')
+      .toString()
+      .trim()
+      .toUpperCase()
+      .replaceAll(
+        RegExp(r'[^A-Z0-9 ]+'),
+        ' ',
+      )
+      .trim();
+  if (s.isEmpty) return 'UNKNOWN';
+  return s.length <= 24 ? s : '${s.substring(0, 23)}…';
+}
 
 IconData sevIcon(Sev s) => switch (s) {
-  Sev.pass => Icons.verified_outlined,
-  Sev.warn => Icons.error_outline,
-  Sev.alert => Icons.report_problem_outlined,
-  Sev.bad => Icons.dangerous_outlined,
-  Sev.info => Icons.info_outline,
-  Sev.unknown => Icons.help_outline,
-};
+      Sev.pass => Icons.verified_outlined,
+      Sev.warn => Icons.error_outline,
+      Sev.alert => Icons.report_problem_outlined,
+      Sev.bad => Icons.dangerous_outlined,
+      Sev.info => Icons.info_outline,
+      Sev.unknown => Icons.help_outline,
+    };
 
 /// Formats a number without pretending to more precision than we have.
 /// `null` renders as an em dash rather than "null", because a blank cell is
@@ -80,7 +101,7 @@ class VerdictBanner extends StatelessWidget {
     this.source,
   });
 
-  final Object severity;
+  final Object? severity;
   final String headline;
   final String? detail;
   final String? source;
@@ -107,6 +128,29 @@ class VerdictBanner extends StatelessWidget {
             children: [
               Icon(sevIcon(sev), color: color, size: 22),
               const SizedBox(width: 8),
+              // The severity word, as text. The icon and the hue are decoration
+              // on top of this; they are not how the severity is communicated.
+              Padding(
+                padding: const EdgeInsets.only(right: 8, top: 2),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: color.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    _sevWord(severity),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ),
               Expanded(
                 child: Text(
                   headline,
@@ -142,14 +186,14 @@ class Source extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-    text,
-    style: TextStyle(
-      fontSize: 11.5,
-      fontStyle: FontStyle.italic,
-      color: Theme.of(context).colorScheme.outline,
-      height: 1.3,
-    ),
-  );
+        text,
+        style: TextStyle(
+          fontSize: 11.5,
+          fontStyle: FontStyle.italic,
+          color: Theme.of(context).colorScheme.outline,
+          height: 1.3,
+        ),
+      );
 }
 
 class SectionCard extends StatelessWidget {
@@ -292,24 +336,24 @@ class Kv extends StatelessWidget {
 }
 
 class LoadingBox extends StatelessWidget {
-  const LoadingBox([this.label = 'Loading']);
+  const LoadingBox({this.label = 'Loading', super.key});
   final String label;
 
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2.5),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(height: 10),
+            Text(label, style: const TextStyle(fontSize: 12.5)),
+          ],
         ),
-        const SizedBox(height: 10),
-        Text(label, style: const TextStyle(fontSize: 12.5)),
-      ],
-    ),
-  );
+      );
 }
 
 /// A backend failure is shown with its remedy. Silently retrying, or showing
@@ -366,18 +410,18 @@ class EmptyBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
-    child: Text(
-      message,
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        color: Theme.of(context).colorScheme.outline,
-        fontStyle: FontStyle.italic,
-        fontSize: 12.5,
-        height: 1.4,
-      ),
-    ),
-  );
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.outline,
+            fontStyle: FontStyle.italic,
+            fontSize: 12.5,
+            height: 1.4,
+          ),
+        ),
+      );
 }
 
 /// A run button that reports its own in-flight state, so a slow call cannot be
@@ -400,16 +444,16 @@ class RunButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FilledButton.icon(
-    onPressed: busy ? null : onPressed,
-    icon: busy
-        ? const SizedBox(
-            width: 14,
-            height: 14,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
-        : Icon(icon ?? Icons.play_arrow, size: 18),
-    label: Text(busy ? busyLabel : label),
-  );
+        onPressed: busy ? null : onPressed,
+        icon: busy
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(icon ?? Icons.play_arrow, size: 18),
+        label: Text(busy ? busyLabel : label),
+      );
 }
 
 /// A section that loads itself once and can be reloaded on demand.
@@ -442,14 +486,14 @@ class _AsyncSectionState<T> extends State<AsyncSection<T>> {
 
   @override
   Widget build(BuildContext context) => FutureBuilder<Result<T>>(
-    future: _future,
-    builder: (context, snap) {
-      if (!snap.hasData) return LoadingBox(widget.loadingLabel);
-      final r = snap.data!;
-      if (!r.ok) return ErrorBox(r.error!, onRetry: _reload);
-      return widget.builder(context, r.value as T);
-    },
-  );
+        future: _future,
+        builder: (context, snap) {
+          if (!snap.hasData) return LoadingBox(label: widget.loadingLabel);
+          final r = snap.data!;
+          if (!r.ok) return ErrorBox(r.error!, onRetry: _reload);
+          return widget.builder(context, r.value as T);
+        },
+      );
 }
 
 /// Labelled numeric input. Parses defensively and falls back to [fallback]
@@ -478,26 +522,15 @@ class NumField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextField(
-    controller: controller,
-    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-    decoration: InputDecoration(
-      labelText: label,
-      hintText: hint,
-      helperText: helper,
-      helperMaxLines: 2,
-      border: const OutlineInputBorder(),
-      isDense: true,
-    ),
-    onChanged: (_) => setState(() {}),
-  );
-}
-
-/// Rebuilds when a NumField's contents change, so dependent readouts stay live.
-class NumFieldStateful extends StatelessWidget {
-  const NumFieldStateful({super.key, required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) =>
-      StatefulBuilder(builder: (context, setState) => child);
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          helperText: helper,
+          helperMaxLines: 2,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+      );
 }
