@@ -1,7 +1,9 @@
 # Agora — Master Plan
 
 **Multi-AI Council Orchestrator · Native Ubuntu Desktop App · AppImage**
-Status: PLAN APPROVED (stack locked) · Date: 2026-09-28
+Status: PLAN APPROVED (stack locked) · Date: 2026-09-28 · **Amended 2026-10-06 — R1**
+(ratified: private + public channels, silent Chrome, opencode × WhatsApp UI, live
+identity seeding — §18 supersedes the earlier dispatch reading where they conflict)
 
 ---
 
@@ -47,7 +49,9 @@ server, no Docker, no Python.
 3. **Adapters are data, not code.** Selectors live in versioned JSON. A ChatGPT redesign
    must never require an app release.
 4. **The orchestrator never guesses.** Invites come from a strict machine-readable block.
-   Free-text never triggers a dispatch.
+   Free-text never triggers a dispatch. Channel model per §18: `invite`/`broadcast`
+   (public, leader-gated) and `dm` (private, any participant) — all still machine-readable
+   blocks, never prose.
 5. **Local-first.** SQLite on disk. No Agora server. No telemetry. Air-gap capable except for
    the AI sites themselves.
 
@@ -228,15 +232,30 @@ the **only** thing Agora parses. Anything else is treated as prose.
 ````text
 ```council
 {
-  "action": "invite",              // or "decide" | "comment" | "need_input"
-  "agent": "gemini",               // target agent kind
+  "action": "invite",              // or "decide" | "comment" | "need_input" | "broadcast" | "dm"
+  "agent": "gemini",               // target agent kind (omit for broadcast)
   "task": "Critique the cathode spec",
   "context": "Compact delta: previous 2 rounds + open question",
   "expect": "5 bullet risks, each with severity",
   "why": "Physics validation needed"
 }
 ```
-````
+```
+
+```text
+```council
+{ "action": "broadcast", "task": "…same task to every participant…",
+  "context": "…", "expect": "…", "why": "…" }
+```
+{ "action": "dm", "agent": "gemini", "task": "…private message, shown only in the
+  gemini↔chatgpt private thread…", "context": "…", "why": "…" }
+```
+```
+
+Channel model (ratified R1, §18): **public** council thread = `invite` (leader →
+one participant) or `broadcast` (leader → all participants); **private** threads
+(session-scoped DMs) = `dm` from any participant to any participant. Every channel
+action still comes from a strict machine-readable block only.`
 
 ```text
 ```council
@@ -253,6 +272,8 @@ the **only** thing Agora parses. Anything else is treated as prose.
 Protocol rules:
 - Strict JSON parse. Invalid → treated as prose, surfaced to you as a protocol warning.
 - `agent` must be a session participant. Unknown → warning, no dispatch.
+- `invite` and `broadcast` are leader-only actions. `dm` is allowed from any participant.
+  Violation → warning, no dispatch (and the offending line is flagged in the UI).
 - `max` invites per round and `max_rounds` per session, both enforced hard.
 - Every parse outcome is logged to `events` for audit.
 
@@ -362,6 +383,10 @@ model picker, login marker; stability thresholds; timeouts; locale.
 - Also: Calibration Studio screen, Decision Record viewer, Settings.
 - Shortcuts: `⌘/Ctrl+Enter` send · `⌘/Ctrl+K` palette · `Ctrl+S` snapshot · `Esc` interrupt.
 
+> **§11 is the v1 layout (shipped).** The ratified **UI v2 — opencode × WhatsApp hybrid**
+> (chat-list, bubbles, HUD, slash commands) is specified in §18.3 and supersedes this
+> three-pane sketch where they conflict.
+
 ---
 
 ## 12. Testing without real accounts
@@ -398,6 +423,9 @@ model picker, login marker; stability thresholds; timeouts; locale.
 | **P6** | UI polish, journal/replay, safety firewall, **AppImage build** | M |
 | **P7** | Upgrades batch 1: adversarial rounds, consensus, delta packets, forking, templates, voice | L |
 | **P8** | Upgrades batch 2: Fractal Memory, remote adapter updates, analytics, marketplace | L |
+| **P9** | Channels: `dm` + `broadcast` protocol actions, private thread storage, UI channels | M (R1) |
+| **P10** | UI v2: opencode × WhatsApp hybrid — chat list + bubbles + HUD + slash commands | L (R1) |
+| **P11** | Silent Chrome mode (`agora.chromeMode: silent`) + captcha/login auto-reveal | S (R1) |
 
 Realistic: P0–P6 is a genuinely usable v1 in ~5–7 focused days. P7–P8 take it from useful
 to something you'd build your engineering workflow around.
@@ -417,6 +445,8 @@ to something you'd build your engineering workflow around.
 | **App crashes mid-council** | MED | Journal every action, resume from last completed round |
 | **Prompt injection across agents** | MED | C1 firewall + fenced relayed content |
 | **CDP profile lock** (Chrome already running with same dir) | LOW | Dedicated dir; detect and report clearly |
+| **Silent Chrome hides a captcha or login prompt** (R1) | MED | Auto-reveal on `captcha`/`rateLimited`/`loggedOut` events; HUD "Reveal Chrome" button; audible alert |
+| **Seeded identity goes stale** (R1: cookies copied from everyday Chrome) | MED | Re-check logins on launch (LoginChecker); seed refresh documented in §18.4; never read a live Cookie DB while its Chrome runs (copy only when Chrome is closed) |
 
 ---
 
@@ -433,6 +463,120 @@ to something you'd build your engineering workflow around.
 
 1. Per-agent daily message cap — set a default? (Suggested: 60/agent/day.)
 2. Do you want a **visible Chrome window** (you can watch the agents) or a background window?
-   (Suggested: visible, with a "minimize to tray" toggle.)
+   → **Answered in R1 (§18.2): silent Chrome is the default, with auto-reveal + "Reveal Chrome"**
+   → in the HUD. `agora.chromeMode: visible | silent`.
 3. Should relayed answers be **summarized by the leader** before reaching other agents, or sent raw?
    (Suggested: raw, with the leader free to add its own framing.)
+
+---
+
+## 18. Amendment R1 — ratified 2026-10-06
+
+Ratified by the user on 2026-10-06 ("Vajith Husan / vajithhusan@gmail.com … silent … private and
+public communication between each other … opencode and whatsapp mixed interface … improve the
+plan more"). This section amends the plan of record. Where it conflicts with anything above —
+§2.4, §8, §11, §17 — **R1 wins**.
+
+### 18.1 Communication model — private and public channels
+
+The council is no longer a single leader→delegate thread. Every session has **one public
+council channel** plus **N private channels** (one per agent pair, created lazily on first DM).
+
+| Action | Channel | Allowed senders | Semantics |
+|---|---|---|---|
+| `invite` | public | leader only | Leader addresses one participant; reply lands in the public thread |
+| `broadcast` | public | leader only | Leader sends one packet to all participants (ratifies the old GROUPCHAT round-robin, but *explicitly*, never by free text) |
+| `dm` | private | **any participant** | Point-to-point message between two agents; reply swaps roles in the same private thread |
+| `decide` / `comment` / `need_input` | public | leader only | As per §8 |
+
+Rule unchanged: **all dispatch comes from strict machine-readable blocks.** The old "delegates
+may not invite" ban (§2.4's original reading, `AGENTS.md`'s blocking-contradiction) is replaced
+by this table: delegates may `dm` privately, but only the leader opens public rounds. The
+**SpeakerSelector** is thereby unblocked — it selects the next speaker according to this table
+(invite target, broadcast set, or dm target), never from free text.
+
+Storage impact: `channels(id, session_id, kind, display_name, members, created_at)` and
+`messages.channel_id` (nullable → public thread when null). Private threads render as
+WhatsApp-style conversations (18.3) and are fully journaled/replayable like the public thread.
+
+### 18.2 Silent Chrome (background driving)
+
+Default mode is **silent**: Chrome launches on the dedicated profile, occluded/minimized
+(`--start-minimized` + bring-to-front emulation already in the adapter), and only Agora is
+visible. Safety valves, mandatory:
+
+- **Auto-reveal**: on `captcha` / `rateLimited` / `loggedOut` login events the window is
+  brought to front automatically, so a human can solve what only a human can solve.
+- **HUD "Reveal Chrome" button** and **audible alert** when the council pauses for a human.
+- Toggle `agora.chromeMode: silent | visible` — visible mode keeps the v1 behavior.
+- Journal captures the window state alongside every action for replay fidelity.
+
+### 18.3 UI v2 — opencode × WhatsApp hybrid (highest UI/UX, HUD, GUI)
+
+Layout (three panes + HUD):
+
+```
+┌────────────────────┬──────────────────────────────────────────┬───────────────────────┐
+│ CHATS (WhatsApp)   │  CONVERSATION (bubbles)                  │  HUD (workbench)      │
+│ ────────────────── │  ┌────────────────────────────────────┐  │ ───────────────────── │
+│ 🟢 Battery design  │  │ [9:41] gemini  ◐ typing…           │  │ ● chatgpt   lead      │
+│    (council · 5)   │  │ ▸ round 4 · leader: chatgpt        │  │ ◐ gemini    busy      │
+│ 🟢 gemini↔deepseek │  │ ┌──────────────────────────────┐   │  │ ○ deepseek   idle     │
+│    (private · 2)   │  │ │ [gemini] vocalcritique… ✓✓  │   │  │ ⏱ ctx 62% ▮▮▮▯▯▯      │
+│ 🟢 chatgpt↔gemini  │  │ │ ⟨raw|rendered|plain⟩ ⎘ 12s   │   │  │ 📈 convergence 0.82   │
+│    (private · 1)   │  │ └──────────────────────────────┘   │  │ [Adversarial] [Fork]  │
+│ 🔍 search          │  │  code blocks styled like opencode   │  │ [Export] [Reveal⇔]   │
+│ + New session      │  └────────────────────────────────────┘  │ [Stop] [Templates]    │
+│ pinned: Battery    │  ⟶ /adversarial  @gemini  …  🎤 ⌘⏎      │                       │
+└────────────────────┴──────────────────────────────────────────┴───────────────────────┘
+```
+
+- **Left — chat list (WhatsApp conventions):** conversations = public councils + private
+  channels, avatar stacks, unread badges, pinned, presence dots (● busy / ◐ generating /
+  ○ idle derived from seat state), ✓ / ✓✓ read receipts on agent messages, search, archive.
+- **Center — conversation bubbles:** per-agent colors + avatars + role chips; **verbatim**
+  toggle Raw/Rendered/Plain per message (§2.1); round separators in the public thread;
+  opencode-style code blocks + inline markdown + session fork/diff affordances (D3, D4);
+  typing indicator while an agent streams; latency + packet links.
+- **Right — HUD/workbench:** live seat status, per-agent context-pressure meters (B2),
+  convergence graph (A4), model picker, one-click actions (adversarial round, fork, export,
+  stop, reveal-Chrome), templates, decision record.
+- **Composer (opencode conventions):** slash commands (`/adversarial`, `/fork`, `/template`,
+  `/roles`, `/inject`), `@` routing (`@all` → broadcast, `@gemini` → DM + fast-path to that
+  private thread), voice hold-to-talk, `⌘/Ctrl+Enter`, `⌘/Ctrl+K` palette, `Esc` interrupt.
+- Every pane is keyboard-navigable; the HUD collapses into an overlay while a council runs
+  (the "HUD" lives up to its name — you can watch the debate while working elsewhere).
+
+### 18.4 Live identity — the Vajith Husan profile (done, verified 2026-10-06)
+
+The dedicated profile `~/.config/agora/chrome-profile` is **pre-seeded** from the user's
+everyday Chrome *Vajith Husan / vajithhusan@gmail.com* profile:
+
+- Seeded once by cloning `~/.config/google-chrome/Profile 1` identity files into the dedicated
+  profile as `Default` — `Local State` (carrying `os_crypt` portal key), `Cookies`, `Login
+  Data*`, `Local Storage`, `IndexedDB`, `WebStorage`, avatar — **never** caches/extensions/
+  sessions, and **only while the source Chrome is closed** (a live Cookie DB is never copied).
+- Result (verified live 2026-10-06): **ChatGPT READY** and **Google/Gemini READY** on the
+  dedicated profile; both sites authenticate without any manual sign-in.
+- **DeepSeek has no stored login** in the Vajith profile (verified across Cookies, Local
+  Storage and IndexedDB on 2026-10-06 — only `smidV2` tracking exists). The onboarding wizard
+  detects this and leaves a sign-in tab open once; afterwards it persists in the dedicated
+  profile. This is expected behavior, not a defect.
+- The first live-council gate is a re-run of `tool/live_check.dart council` against the seeded
+  profile (see STATE.md for the result and any adapter fixes that followed).
+- Future: an in-app "import my logins" flow generalizes the seed (choose profile → read-only
+  copy while closed → verify). Not in the R1 build list unless the manual copy rots.
+
+### 18.5 What R1 changes in code/storage (build list)
+
+1. `lib/core/council`: protocol parser accepts `dm` + `broadcast`; `orchestrator.dart` gains
+   the sender table (leader-gate on `invite`/`broadcast`, open `dm`); SpeakerSelector unblocked
+   per §18.1.
+2. storage: `channels` table + `messages.channel_id` (drift migration v3); repository CRUD for
+   private threads.
+3. UI: `lib/ui` — chat list pane, bubbles, HUD, slash/`@` composer (P10); Chrome reveal +
+   `agora.chromeMode` toggle (P11).
+4. Login re-check on launch stays `LoginChecker`; auto-reveal hook added to the council pause
+   path.
+5. Tests: protocol parsing for all five actions, sender-table enforcement, channel journal
+   replay, dm round-trip in the Sandbox Lab; UI widget tests for chat list + HUD.
