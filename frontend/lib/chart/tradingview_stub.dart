@@ -9,25 +9,35 @@ library;
 import 'package:flutter/widgets.dart';
 
 import 'candle.dart';
+import 'overlays.dart';
 
 export 'candle.dart';
+export 'overlays.dart';
 
 /// Always false off the web: there is no DOM to mount into.
 bool get chartsAvailable => false;
 
-/// No chart to update.
-void chartSetData(String id, List<Candle> data) {}
+/// No chart to update. The `overlays` parameter exists so this stub has the same
+/// signature as the web build — a conditional import whose two branches disagree
+/// on their API compiles fine and then fails to link.
+void chartSetData(
+  String id,
+  List<Candle> data, [
+  List<Overlay> overlays = const [],
+]) {}
 
 /// A live candlestick chart with a volume pane — or, here, an honest notice.
 class CandlestickChart extends StatelessWidget {
   const CandlestickChart({
     super.key,
     required this.candles,
+    this.overlays = const [],
     this.showVolume = true,
     this.height = 380,
   });
 
   final List<Candle> candles;
+  final List<Overlay> overlays;
   final bool showVolume;
   final double height;
 

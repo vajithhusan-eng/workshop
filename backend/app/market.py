@@ -155,6 +155,25 @@ US_TICKERS = {
 }
 
 
+# Codes that moved and that people still type. Without this, `TATAMOTORS.NS`
+# simply does not exist, the fetch returns nothing, and the user gets a chart of
+# synthetic data for a company that is entirely real — the worst possible
+# failure mode, because it looks like it worked.
+ALIASES = {
+    # Tata Motors demerged: the old code now names two companies. This resolves
+    # to the passenger-vehicle entity, which is what most people typing
+    # "TATAMOTORS" mean. The commercial-vehicle side trades as TATAMTRDVR, which
+    # yfinance does not carry — so this alias is a judgement call, and the UI
+    # must say which entity it landed on rather than pretending the split never
+    # happened.
+    "TATAMOTORS": "TMPV.NS",
+    "TATAMOTOR": "TMPV.NS",
+    "HDFC": "HDFCBANK.NS",  # merged into HDFC Bank
+    "BAJAJFINSV": "BAJAJFINANCE.NS",
+    "YESBANK": "YESBANK.NS",
+}
+
+
 def normalise_symbol(symbol: str) -> tuple[str, str]:
     """Return (yfinance_symbol, display).
 
@@ -169,6 +188,8 @@ def normalise_symbol(symbol: str) -> tuple[str, str]:
         return s, s
     if s in US_TICKERS:
         return s, s
+    if s in ALIASES:
+        return ALIASES[s], s
     return f"{s}.NS", s
 
 

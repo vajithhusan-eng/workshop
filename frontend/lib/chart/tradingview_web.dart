@@ -23,6 +23,8 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/widgets.dart';
 import 'package:web/web.dart' as web;
 
+import 'overlays.dart';
+
 import 'candle.dart';
 
 export 'candle.dart';
@@ -125,6 +127,7 @@ class CandlestickChart extends StatefulWidget {
 class _CandlestickChartState extends State<CandlestickChart> {
   String? _viewType;
   List<Candle> _shown = const [];
+  String _overlaySig = '';
 
   @override
   void initState() {
@@ -133,6 +136,7 @@ class _CandlestickChartState extends State<CandlestickChart> {
     _viewType = 'omnicivest-chart-${_seq++}';
     final id = _viewType!;
     _shown = normaliseBars(widget.candles);
+    _overlaySig = _overlaySignature(widget.overlays);
 
     ui_web.platformViewRegistry.registerViewFactory(id, (int _) {
       // HTMLDivElement already `implements JSObject`, so it passes straight
@@ -161,7 +165,7 @@ class _CandlestickChartState extends State<CandlestickChart> {
       }
 
       _handles[id] = _Handle(chart, candles, volume);
-      chartSetData(id, widget.candles);
+      chartSetData(id, widget.candles, widget.overlays);
       return el;
     });
   }
@@ -216,11 +220,22 @@ class _CandlestickChartState extends State<CandlestickChart> {
     super.didUpdateWidget(old);
     final id = _viewType;
     if (id == null) return;
-    if (seriesChanged(_shown, widget.candles)) {
-      chartSetData(id, widget.candles);
+    // Overlays change independently of the candles — toggling RSI off must
+    // repaint even though the price series is byte-identical. Comparing the
+    // two separately is what keeps a stale indicator from outliving the
+    // setting that asked for it.
+    final sig = _overlaySignature(widget.overlays);
+    if (seriesChanged(_shown, widget.candles) || sig != _overlaySig) {
+      chartSetData(id, widget.candles, widget.overlays);
       _shown = normaliseBars(widget.candles);
+      _overlaySig = sig;
     }
   }
+
+  /// Identity of the overlay set: which keys are present, not their values.
+  /// Values change on every fetch; the shape changes when the user toggles.
+  static String _overlaySignature(List<Overlay> overlays) =>
+      overlays.map((o) => o.key).join(',');
 
   @override
   void dispose() {

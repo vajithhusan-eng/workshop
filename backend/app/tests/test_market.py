@@ -71,6 +71,42 @@ def test_symbols() -> None:
     check("TSLA stays US", normalise_symbol("TSLA")[0] == "TSLA")
     check("spaces trimmed", normalise_symbol("  tcs ")[1] == "TCS")
 
+    # A code that moved must still resolve. Getting this wrong is the worst
+    # failure mode available here: the fetch returns nothing, the backend falls
+    # back to synthetic, and the user is handed a confident chart of a random
+    # walk for a company that is entirely real.
+    from app.market import ALIASES
+
+    check(
+        "demerged Tata Motors resolves",
+        normalise_symbol("TATAMOTORS")[0] == "TMPV.NS",
+        str(normalise_symbol("TATAMOTORS")),
+    )
+    check(
+        "alias keeps what the user typed",
+        normalise_symbol("TATAMOTORS")[1] == "TATAMOTORS",
+    )
+    check(
+        "merged HDFC resolves",
+        normalise_symbol("HDFC")[0] == "HDFCBANK.NS",
+        str(normalise_symbol("HDFC")),
+    )
+    check(
+        "old Bajaj Finserv code resolves",
+        normalise_symbol("BAJAJFINSV")[0] == "BAJAJFINANCE.NS",
+    )
+    check(
+        "every alias points at a qualified ticker",
+        all("." in v for v in ALIASES.values()),
+        str(ALIASES),
+    )
+    check(
+        "no alias is its own input",
+        all(k != v for k, v in ALIASES.items()),
+        str(ALIASES),
+    )
+    check("an alias does not shadow a US ticker", "AAPL" not in ALIASES)
+
 
 # ---------------------------------------------------------------- synthetic
 

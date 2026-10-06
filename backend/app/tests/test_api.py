@@ -640,6 +640,207 @@ def test_watch_api() -> None:
     check("unknown context field => 422", status == 422, f"status={status}")
 
 
+def test_analysis_api() -> None:
+    """The signal engine over real HTTP.
+
+    The contract that matters most here is provenance: synthetic bars must
+    arrive with `NO_DATA`, never a confident verdict. A wrong answer delivered
+    confidently is the exact failure this product exists to prevent, and it is
+    the one a route is most likely to break while still returning HTTP 200.
+    """
+    print("\n[/api/analysis/symbol]")
+    st, body = call("GET", "/api/analysis/symbol?symbol=RELIANCE&interval=1d&range=1y")
+    check("analysis returns 200", st == 200, str(st))
+    if not isinstance(body, dict):
+        check("analysis returns an object", False, type(body).__name__)
+        return
+
+    for key in (
+        "symbol",
+        "resolved",
+        "source",
+        "is_synthetic",
+        "candles",
+        "indicators",
+        "indicator_series",
+        "quote",
+        "verdict",
+        "as_of",
+    ):
+        check(f"analysis has {key}", key in body)
+
+    v = body.get("verdict", {})
+    for key in (
+        "action",
+        "conviction",
+        "confidence_pct",
+        "regime",
+        "reasons",
+        "vetoes",
+        "notes",
+        "bars_used",
+        "basis",
+        "snapshot",
+        "fingerprint",
+    ):
+        check(f"verdict has {key}", key in v)
+
+    check(
+        "action is in the vocabulary",
+        v.get("action") in ("BUY", "SELL", "HOLD", "AVOID", "NO_DATA"),
+        str(v.get("action")),
+    )
+    check("basis is snapshot", v.get("basis") == "snapshot", str(v.get("basis")))
+    check(
+        "no price target is issued",
+        "target" not in json.dumps(v).lower() or "target_price" not in v,
+        "verdict must classify state, not instruct",
+    )
+
+    conv = v.get("conviction", -1)
+    check(
+        "conviction in [0,1]",
+        isinstance(conv, (int, float)) and 0.0 <= conv <= 1.0,
+        str(conv),
+    )
+    check(
+        "confidence_pct agrees with conviction",
+        v.get("confidence_pct") == int(round(conv * 100)),
+        f"{v.get('confidence_pct')} vs {conv}",
+    )
+
+    check(
+        "candles returned",
+        len(body.get("candles", [])) > 60,
+        str(len(body.get("candles", []))),
+    )
+    check(
+        "quote agrees with the last candle",
+        abs(body["quote"]["last"] - body["candles"][-1]["close"]) < 0.02,
+        f"{body['quote']['last']} vs {body['candles'][-1]['close']}",
+    )
+
+    panel = body.get("indicator_series", {})
+    check("panel present", len(panel) >= 25, str(len(panel)))
+    check(
+        "panel is aligned to the candle count",
+        all(len(s) == len(body["candles"]) for s in panel.values() if s),
+        "every indicator must be index-aligned with price",
+    )
+    check(
+        "warm-up is None, not zero-filled",
+        panel.get("rsi_14", [1])[0] is None,
+        str(panel.get("rsi_14", [None])[0]),
+    )
+
+    # The provenance guard, over HTTP, on a symbol no feed will ever have.
+    print("\n[/api/analysis/symbol — synthetic refusal]")
+    st2, body2 = call(
+        "GET", "/api/analysis/symbol?symbol=ZZZNOTAREALTICKER&interval=1d"
+    )
+    check("synthetic symbol still returns 200", st2 == 200, str(st2))
+    if isinstance(body2, dict):
+        check("flagged synthetic", body2.get("is_synthetic") is True)
+        check(
+            "declares the source",
+            body2.get("source") == "synthetic",
+            str(body2.get("source")),
+        )
+        check("carries a warning", bool(body2.get("data_warning")))
+        check(
+            "NO signal from invented prices",
+            body2.get("verdict", {}).get("action") == "NO_DATA",
+            str(body2.get("verdict", {}).get("action")),
+        )
+        check(
+            "and it says why",
+            any(
+                "synthetic" in n.lower()
+                for n in body2.get("verdict", {}).get("notes", [])
+            ),
+            str(body2.get("verdict", {}).get("notes")),
+        )
+
+    print("\n[/api/analysis/scan]")
+    st3, body3 = call("GET", "/api/analysis/scan?symbols=RELIANCE,TCS,ZZZNOPE")
+    check("scan returns 200", st3 == 200, str(st3))
+    if isinstance(body3, dict):
+        results = body3.get("results", [])
+        unavailable = body3.get("unavailable", [])
+        check(
+            "results ranked by conviction",
+            [r["confidence_pct"] for r in results]
+            == sorted((r["confidence_pct"] for r in results), reverse=True),
+            "scan must lead with the strongest conviction",
+        )
+        check(
+            "every judged symbol carries a conviction",
+            all("conviction" in r and "regime" in r for r in results),
+        )
+        check(
+            "cannot-judge names are listed, not dropped",
+            len(results) + len(unavailable) == 3,
+            f"{len(results)} results + {len(unavailable)} unavailable != 3",
+        )
+        check(
+            "the fake one is in unavailable",
+            any(u["symbol"] == "ZZZNOPE" for u in unavailable),
+            str([u["symbol"] for u in unavailable]),
+        )
+        check(
+            "summary covers every action",
+            set(body3.get("summary", {}))
+            == {"BUY", "SELL", "HOLD", "AVOID", "NO_DATA"},
+            str(set(body3.get("summary", {}))),
+        )
+        check(
+            "summary counts equal the results",
+            sum(body3.get("summary", {}).values()) == len(results),
+            str(body3.get("summary")),
+        )
+
+    st4, body4 = call("GET", "/api/analysis/scan?symbols=" + ",".join(["X"] * 45))
+    check("oversized scan is refused", st4 == 422, str(st4))
+
+    print("\n[/api/analysis — validation]")
+    check(
+        "empty symbol is refused",
+        call("GET", "/api/analysis/symbol?symbol=&interval=1d")[0] == 422,
+    )
+    check(
+        "bad interval is refused",
+        call("GET", "/api/analysis/symbol?symbol=TCS&interval=7m")[0] == 422,
+    )
+    check(
+        "bad range is refused",
+        call("GET", "/api/analysis/symbol?symbol=TCS&range=99y")[0] == 422,
+    )
+
+
+def test_symbol_aliases() -> None:
+    """A code that moved must resolve, or the user gets synthetic data for a
+    company that is entirely real — a failure that looks like success."""
+    print("\n[symbol aliases over HTTP]")
+    st, body = call("GET", "/api/market/candles?symbol=TATAMOTORS&range=6mo")
+    check("demerged NSE code still resolves", st == 200, str(st))
+    if isinstance(body, dict):
+        check(
+            "alias points at the live ticker",
+            body.get("symbol") == "TMPV.NS",
+            str(body.get("symbol")),
+        )
+        check(
+            "display keeps what the user typed",
+            body.get("display") == "TATAMOTORS",
+            str(body.get("display")),
+        )
+        check(
+            "and it returns real data",
+            body.get("is_synthetic") is False,
+            f"source={body.get('source')}",
+        )
+
+
 def main() -> int:
     print("=" * 68)
     print("OMNIVEST API smoke test")
@@ -661,6 +862,8 @@ def main() -> int:
         test_guardrail_surfaced,
         test_execution_api,
         test_watch_api,
+        test_analysis_api,
+        test_symbol_aliases,
     ):
         fn()
     print("\n" + "=" * 68)

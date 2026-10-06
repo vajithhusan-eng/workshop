@@ -17,6 +17,8 @@ from .guardrails import check_output, brief_disclaimer, ADVISER_MODE
 from .forensics import autopsy, momentum_crash_risk, pbo_cscv
 from .execution import audit_orders, classify_order
 from .market import get_candles, quote, symbol_search, MarketError
+from .indicators import compute_all, snapshot
+from .strategy import analyse, scan, ACTIONS
 from .watchloop import RULES, RULE_LIST, detect, rules_digest
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "omnivest_journal.json")
@@ -487,6 +489,116 @@ def market_symbols(q: str = "", limit: int = 25):
         return symbol_search(q, limit)
     except MarketError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
+
+
+@app.get("/api/analysis/symbol")
+def analysis_symbol(
+    symbol: str,
+    interval: str = "1d",
+    range: str = "1y",
+    include_indicators: bool = True,
+):
+    """Everything the terminal needs for one symbol, in a single round trip.
+
+    Candles, the computed indicator panel and the verdict travel together on
+    purpose. A chart that renders one set of numbers while the panel beside it
+    renders another is the exact disagreement this app exists to prevent, and
+    fetching them separately makes that disagreement a race condition rather
+    than a bug.
+
+    Provenance is carried all the way through: when the candles are synthetic the
+    verdict is forced to `NO_DATA`. A signal derived from invented prices is a
+    fabrication, and the honest answer to "what should I do with this?" is
+    "I cannot answer."
+    """
+    try:
+        payload = get_candles(symbol, interval, range, allow_synthetic=True)
+    except MarketError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    bars = payload["candles"]
+    verdict = analyse(
+        bars,
+        # A signal computed on a random walk describes nothing. Passing the
+        # provenance through is what keeps a chart that fell back to synthetic
+        # data from acquiring a confident BUY out of nowhere.
+        synthetic=payload["is_synthetic"],
+    ).to_payload()
+
+    out = {
+        "symbol": payload["display"],
+        "resolved": payload["symbol"],
+        "interval": payload["interval"],
+        "range": range,
+        "source": payload["source"],
+        "is_synthetic": payload["is_synthetic"],
+        "data_warning": payload["warning"],
+        "as_of": verdict["as_of"],
+        "quote": quote(symbol),
+        "candles": bars,
+        "verdict": verdict,
+    }
+    if include_indicators:
+        # `compute_all` and the strategy engine are the same computation, so
+        # the overlay drawn on the chart cannot disagree with the panel. Called
+        # once — it walks 27 series over every bar.
+        panel = compute_all(bars)
+        out["indicator_series"] = panel
+        # The scalars a HUD actually renders, pulled from the same panel.
+        out["indicators"] = {name: series[-1] for name, series in panel.items()}
+    return out
+
+
+@app.get("/api/analysis/scan")
+def analysis_scan(
+    symbols: str = "",
+    interval: str = "1d",
+    range: str = "3mo",
+):
+    """Rank a basket of symbols by conviction.
+
+    Deliberately returns what it *could not* judge alongside what it could. A
+    scanner that silently drops the names it cannot analyse is a scanner showing
+    you only the easy ones, which is the more flattering and therefore the more
+    misleading version of itself.
+    """
+    wanted = [s.strip() for s in symbols.split(",") if s.strip()]
+    if not wanted:
+        from .market import UNIVERSE
+
+        wanted = list(UNIVERSE)[:20]
+    if len(wanted) > 40:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{len(wanted)} symbols requested; the ceiling is 40. "
+            "A wider scan would be a batch job, not a request.",
+        )
+
+    # `scan` judges bars, not symbols, so the fetch happens here and its
+    # provenance is carried across per symbol. A name we fell back to synthetic
+    # data for must not come back with a conviction attached to it.
+    fetched: dict[str, list] = {}
+    synthetic_names: list[str] = []
+    unfetchable: list[str] = []
+    for sym in wanted:
+        try:
+            payload = get_candles(sym, interval, range, allow_synthetic=True)
+        except MarketError as e:
+            # Tracked rather than skipped. A symbol we could not even fetch is
+            # exactly the one a reader most needs told about, and dropping it
+            # would leave the summary silently covering fewer names than asked.
+            unfetchable.append(sym)
+            continue
+        fetched[payload["display"]] = payload["candles"]
+        if payload["is_synthetic"]:
+            synthetic_names.append(payload["display"])
+
+    out = scan(fetched, synthetic_symbols=synthetic_names)
+    for sym in unfetchable:
+        out["unavailable"].append(
+            {"symbol": sym, "reason": f"no price data could be fetched for {sym}"}
+        )
+    return out
 
 
 @app.get("/api/forensics/crowding")
