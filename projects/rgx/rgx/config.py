@@ -90,6 +90,28 @@ EMBARGO_DAYS = 10  # purge gap; must exceed the label horizon in practice
 COST_SENSITIVITY_BPS = (2.0, 5.0, 10.0, 25.0, 50.0, 100.0)
 
 
+# --------------------------------------------------------------------------
+# Synthetic market drift
+# --------------------------------------------------------------------------
+# MUST stay 0.0. This is not cosmetic -- it was 0.0002 and it silently put a
+# perfectly rankable edge into BOTH arms.
+#
+# The generator gives each name a heterogeneous, time-invariant beta, so any
+# non-zero drift produces a distinct expected return per name,
+# E[r_20d] = FORWARD_RETURN_DAYS * MARKET_DRIFT * beta_i. Nothing in the factor
+# set or the model can avoid finding that; it is not the signal under test.
+# Measured on this generator, ranking names by beta alone scored IC +0.0175
+# (t = +5.86) against realised forward returns with the old drift, versus
+# -0.0032 (t = -1.21) at zero drift. The null arm reported RankIC 0.02-0.06
+# with 4/4 seeds positive purely because of this.
+#
+# Beta still loads on the zero-drift market shock, so return correlation and
+# volatility stay realistic; there is simply no per-name expected return left
+# to rank. Set this non-zero only to demonstrate that the null control detects
+# a planted cross-sectional drift -- see tests/test_null_control.py.
+MARKET_DRIFT = 0.0
+
+
 @dataclass(frozen=True)
 class RunConfig:
     """A single evaluation run. Serialised alongside results for auditability."""

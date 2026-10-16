@@ -80,7 +80,10 @@ def directional_accuracy(predictions: np.ndarray, realised: np.ndarray) -> dict:
         "accuracy": acc,
         "base_rate_always_up": base,
         "excess_over_base_rate": acc - base,
-        "n": int(mask.size),
+        # Count of COMPARE PAIRS, not mask.size. Scores exist only on
+        # walk-forward test dates, so the (T, n) array is mostly masked out;
+        # reporting mask.size overstated the evidence roughly 6x.
+        "n": int(mask.sum()),
     }
 
 

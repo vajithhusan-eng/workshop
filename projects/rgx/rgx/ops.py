@@ -53,7 +53,14 @@ def cross_sectional_rank_frac(x: np.ndarray) -> np.ndarray:
         ranks, order, np.broadcast_to(np.arange(n, dtype=float), (T, n)), axis=1
     )
 
-    out = (ranks + 1.0) / (n + 1.0)
+    # Denominator is the per-row count of FINITE names, not the total n. On a
+    # row that is partially outside the point-in-time universe, valid names
+    # cannot reach the top of the full-n scale (e.g. 50/60 valid caps at
+    # 50/61 ~ 0.82), which hollows the top sleeve and yields NaN from the
+    # decile machinery. Fraction-of-valid restores "top decile" semantics on
+    # exactly the tradable cross-section.
+    n_valid = finite.sum(axis=1, keepdims=True).astype(float)
+    out = (ranks + 1.0) / (n_valid + 1.0)
     out[~finite] = np.nan
     return out
 

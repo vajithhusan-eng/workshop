@@ -208,6 +208,40 @@ def _predict_gated(
     return out
 
 
+def _seed_score_dispersion(primary: np.ndarray, others: list[np.ndarray]) -> float:
+    """Mean cross-seed dispersion of the cross-sectional mean score.
+
+    An honest uncertainty measure on our own model: refit the same fold with
+    different random seeds and report how much the daily cross-sectional mean
+    score moves. Near zero means the fit is stable; large means any single-seed
+    number we quote is an artefact of that seed.
+
+    Every panel here must be the SAME fold window -- ``primary`` and each of
+    ``others`` are shaped ``(n_test_dates, n_names)``. Panels are deliberately
+    not indexable by a full-panel date mask: the per-seed panels are built on
+    ``fold.test_idx`` only, so applying ``all_test_dates[0]`` to them raises
+    IndexError rather than quietly misaligning. Shapes are checked here so the
+    failure is a named error, not an ndarray traceback.
+
+    Returns NaN when there is nothing to compare (a single seed).
+    """
+    if not others or primary is None:
+        return float("nan")
+
+    panels = [primary, *others]
+    rows = {p.shape[0] for p in panels}
+    if len(rows) != 1:
+        raise ValueError(
+            "seed score panels must cover the same fold window; got row counts "
+            f"{sorted(rows)}. A per-seed panel is built on fold.test_idx alone, "
+            "so it cannot be indexed with a full-panel date mask."
+        )
+
+    with np.errstate(invalid="ignore"):
+        stack = np.stack([np.nanmean(p, axis=1) for p in panels])
+        return float(np.nanmean(np.nanstd(stack, axis=0)))
+
+
 def run_evaluation(cfg: RunConfig | None = None, verbose: bool = True) -> dict:
     """Run the full walk-forward evaluation and return a report dict."""
     cfg = cfg or RunConfig()
@@ -246,9 +280,9 @@ def run_evaluation(cfg: RunConfig | None = None, verbose: bool = True) -> dict:
 
     all_scores = np.full((T, n), np.nan)
     all_ic_rows: list[np.ndarray] = []
-    all_test_dates: list[np.ndarray] = []
     fold_sharpes: list[float] = []
     per_seed_scores: list[np.ndarray] = []
+    primary_fold_scores: np.ndarray | None = None
     gate_counts = []
 
     for fi, fold in enumerate(folds):
@@ -264,7 +298,6 @@ def run_evaluation(cfg: RunConfig | None = None, verbose: bool = True) -> dict:
         # IC measured only where the model actually emitted a score.
         ic = cross_sectional_ic(fold_scores, fwd[fold.test_idx], "spearman")
         all_ic_rows.append(ic)
-        all_test_dates.append(fold.test_idx)
         log.record(
             f"walk_forward_fold_{fi}",
             float(np.nanmean(ic) * np.sqrt(252.0)) if np.isfinite(ic).any() else 0.0,
@@ -274,6 +307,7 @@ def run_evaluation(cfg: RunConfig | None = None, verbose: bool = True) -> dict:
         # agents exhibit extreme run-to-run variance. We report the spread of
         # our own model across seeds as an honest uncertainty measure.
         if fi == 0:
+            primary_fold_scores = fold_scores
             for s in range(1, cfg.seed_variants):
                 m_s, _, p_s = _fit_gated(
                     data, fold.train_idx, RankerConfig(random_state=cfg.seed + 17 * s)
@@ -404,7 +438,12 @@ def run_evaluation(cfg: RunConfig | None = None, verbose: bool = True) -> dict:
     }
 
     # Accuracy, reported as excess over the always-up base rate.
-    acc = baselines.directional_accuracy(all_scores, np.nan_to_num(fwd, nan=0.0))
+    # Pass `fwd` RAW. Filling undefined forward returns with 0.0 turned the
+    # last `horizon` rows of the final test window into fake flat returns:
+    # sign(0.0) == 0.0 matches no prediction, so ~16% of compare pairs were
+    # scored as wrong, dragging accuracy down ~8pp and corrupting the base
+    # rate by the same amount. directional_accuracy already masks NaNs.
+    acc = baselines.directional_accuracy(all_scores, fwd)
 
     # ------------------------------------------------------------------
     # Cost sensitivity grid
@@ -460,15 +499,7 @@ def run_evaluation(cfg: RunConfig | None = None, verbose: bool = True) -> dict:
     gate = gate_agreement(micro, data["panel"].regime_label)
 
     # Multi-seed prediction dispersion on the first fold.
-    seed_dispersion = float("nan")
-    if per_seed_scores:
-        valid = all_test_dates[0]
-        stack = np.stack(
-            [np.nanmean(all_scores[valid], axis=1)]
-            + [np.nanmean(s[valid], axis=1) for s in per_seed_scores]
-        )
-        with np.errstate(invalid="ignore"):
-            seed_dispersion = float(np.nanmean(np.nanstd(stack, axis=0)))
+    seed_dispersion = _seed_score_dispersion(primary_fold_scores, per_seed_scores)
 
     # ------------------------------------------------------------------
     # Verdict
@@ -616,6 +647,14 @@ def format_report(report: dict) -> str:
             f"maxDD {f(v['max_drawdown'] * 100, 1):>7}%"
         )
 
+    # NaN here means seed_variants == 1 (nothing to compare), not a failed
+    # metric. Printing a bare "nan" would read as a broken number.
+    seed_disp = (
+        f(gate["seed_score_dispersion"], 4)
+        if np.isfinite(gate["seed_score_dispersion"])
+        else f"n/a (seed_variants={report['config']['seed_variants']})"
+    )
+
     lines += [
         "",
         "STATISTICAL CORRECTIONS",
@@ -631,7 +670,7 @@ def format_report(report: dict) -> str:
         f"  Spearman             {f(gate['spearman'], 3)}",
         f"  AUC                  {f(gate['auc'], 3)}",
         f"  dense-tercile acc    {f(gate['dense_tercile_accuracy'] * 100, 1)}%",
-        f"  seed dispersion      {f(gate['seed_score_dispersion'], 4)}",
+        f"  seed dispersion      {seed_disp}",
         "",
         "CHECKS",
     ]

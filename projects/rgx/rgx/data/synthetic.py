@@ -27,7 +27,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy import stats
 
-from ..config import MIN_DOLLAR_VOLUME, MIN_MARKET_CAP
+from ..config import MARKET_DRIFT, MIN_DOLLAR_VOLUME, MIN_MARKET_CAP
 
 
 @dataclass
@@ -47,6 +47,11 @@ class SyntheticPanel:
     book_density: np.ndarray  # (T,)   latent, UNOBSERVABLE regime state in [0,1]
     regime_label: np.ndarray  # (T,)   1 = dense book, 0 = sparse book
     sigma_daily: np.ndarray  # (T, n)
+    # Latent market beta, heterogeneous and fixed over time. Exposed so a test
+    # can assert the generator contains no rankable ground-truth edge: with a
+    # non-zero MARKET_DRIFT, ranking by beta predicts forward return, and the
+    # null arm stops being a null. See config.MARKET_DRIFT.
+    beta: np.ndarray  # (n,)
 
     def __len__(self) -> int:
         return self.close.shape[0]
@@ -57,6 +62,7 @@ def generate_panel(
     n_names: int = 800,
     n_days: int = 2510,
     edge: str = "planted",
+    market_drift: float = MARKET_DRIFT,
 ) -> SyntheticPanel:
     """Generate a synthetic point-in-time OHLCV panel.
 
@@ -113,7 +119,11 @@ def generate_panel(
     # ------------------------------------------------------------------
     # 3. Latent factor returns.
     # ------------------------------------------------------------------
-    market = rng.normal(0.0002, 0.011, T)
+    # Market drift comes from config and MUST be 0.0 (see MARKET_DRIFT there
+    # for the measurement). Any non-zero drift reintroduces a per-name
+    # expected return E[r_20d] = FORWARD_RETURN_DAYS * drift * beta_i, which is
+    # rankable without reference to the signal under test.
+    market = rng.normal(market_drift, 0.011, T)
 
     # Momentum factor: persistent where books are dense, absent where sparse.
     mom_factor = np.zeros(T)
@@ -232,6 +242,7 @@ def generate_panel(
         book_density=density,
         regime_label=dense,
         sigma_daily=sigma_daily,
+        beta=beta,
     )
 
 
