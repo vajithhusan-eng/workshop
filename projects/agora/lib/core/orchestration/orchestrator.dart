@@ -16,8 +16,10 @@
 ///      masking is allowed to alter a relayed string, and only when the user
 ///      explicitly turned it on.
 ///   2. **Never guess.** A dispatch happens only when [CouncilProtocol.parse]
-///      produced a usable `invite` block. Free text is stored and shown, and
-///      then ignored for control purposes.
+///      produced a usable machine-readable block *and* [SpeakerSelector]'s
+///      §18.1 sender table allows it — the leader opens public rounds
+///      (`invite`, `broadcast`), any participant may `dm`. Free text is stored
+///      and shown, then ignored for control purposes.
 ///   3. **Always terminates.** Every loop iteration starts by asking
 ///      [BudgetGuard] whether we may continue.
 ///
@@ -33,6 +35,7 @@ import 'convergence.dart';
 import 'council_protocol.dart';
 import 'prompt_compiler.dart';
 import 'safety.dart';
+import 'speaker_selector.dart';
 
 // ---------------------------------------------------------------------------
 // Events
@@ -75,12 +78,17 @@ class MessageCaptured extends CouncilEvent {
     super.round,
     this.kind,
     this.displayName,
-    this.verbatim,
-  );
+    this.verbatim, {
+    this.channelKey,
+  });
 
   final String kind;
   final String displayName;
   final Verbatim verbatim;
+
+  /// The §18.1 thread this message was spoken into: null for the public thread,
+  /// else a private dm key ([SpeakerSelector.dmChannelKey], `dm:<a>|<b>`).
+  final String? channelKey;
 
   @override
   String toString() =>
@@ -89,10 +97,18 @@ class MessageCaptured extends CouncilEvent {
 
 /// A packet is about to be typed into a real browser tab.
 class PacketDispatched extends CouncilEvent {
-  const PacketDispatched(super.round, this.target, this.packet);
+  const PacketDispatched(
+    super.round,
+    this.target,
+    this.packet, {
+    this.channelKey,
+  });
 
   final String target;
   final TaskPacket packet;
+
+  /// The §18.1 thread the packet was typed into: null public, else a dm key.
+  final String? channelKey;
 
   @override
   String toString() =>
@@ -490,51 +506,22 @@ class Orchestrator {
         );
       }
 
-      // ---------------- DISPATCH INVITES ----------------
-      if (action == CouncilAction.invite && block != null) {
-        final target = byKind[block.agent];
-        if (target == null) {
-          _emit(
-            ProtocolWarning(round, 'unknown invite target "${block.agent}"'),
-            round,
-          );
-        } else {
-          _emit(
-            ProtocolWarning(round, 'invite → ${target.displayName}'),
-            round,
-          );
-          if (!budget.reserveInvite()) {
-            log.w('round $round: invite cap reached, ignoring further invites');
-          } else {
-            _setPhase(OrchestratorPhase.dispatching, round, target.displayName);
-            final packet = _packetFor(
-              seat: target,
-              brief: _inviteBrief(block, target),
-              round: round,
-              history: _transcript,
-              lastSeen: lastSeen[target.kind],
-              strategy: contextStrategy,
-            );
-            _emit(PacketDispatched(round, target.kind, packet), round);
-
-            final reply = await _speak(
-              seat: target,
-              packet: packet,
-              round: round,
-              roundAnswers: roundAnswers,
-              roundSpeakers: () => roundSpeakers,
-            );
-            if (reply == null) {
-              log.w(
-                'round $round: ${target.displayName} never answered; '
-                'the leader decides without them',
-              );
-              continue;
-            }
-            lastSeen[target.kind] = round;
-            _relayGuard(reply.rawText, target.kind);
-          }
-        }
+      // ---------------- DISPATCH ----------------
+      // §18.1: the leader opens a public round with `invite` (one named
+      // participant) or `broadcast` (everyone else). SpeakerSelector owns the
+      // sender table, so those rules live in exactly one place.
+      if (block != null && action.opensRound) {
+        final aborted = await _dispatch(
+          block: block,
+          sender: _leaderSeat,
+          round: round,
+          roundAnswers: roundAnswers,
+          roundSpeakers: () => roundSpeakers,
+          lastSeen: lastSeen,
+          allowDelegateDm: true,
+        );
+        // A dispatched agent never answered: skip judging, start a new round.
+        if (aborted) continue;
       }
 
       // ---------------- JUDGE ----------------
@@ -568,6 +555,7 @@ class Orchestrator {
     required int round,
     required Map<String, String> roundAnswers,
     required List<String> Function() roundSpeakers,
+    String? channelKey,
   }) async {
     // Count EVERY send against the daily cap, leader included. Reserving only
     // in the invite branch let the leader send without limit.
@@ -608,7 +596,16 @@ class Orchestrator {
     }
     budget.clearTransportErrors();
 
-    _emit(MessageCaptured(round, seat.kind, seat.displayName, verbatim), round);
+    _emit(
+      MessageCaptured(
+        round,
+        seat.kind,
+        seat.displayName,
+        verbatim,
+        channelKey: channelKey,
+      ),
+      round,
+    );
     roundAnswers[seat.kind] = verbatim.rawText;
     roundSpeakers().add(seat.displayName);
 
@@ -623,6 +620,157 @@ class Orchestrator {
       ),
     );
     return verbatim;
+  }
+
+  /// Dispatch one §18.1 action through the sender table in [SpeakerSelector].
+  ///
+  /// Used for the leader's public round-openers (`invite`, `broadcast`) and for
+  /// any participant's `dm`. Returns true when the round should be abandoned
+  /// because a dispatched agent never answered, so the caller skips judging and
+  /// starts the next round — the pre-R1 behaviour.
+  Future<bool> _dispatch({
+    required CouncilBlock block,
+    required CouncilSeat sender,
+    required int round,
+    required Map<String, String> roundAnswers,
+    required List<String> Function() roundSpeakers,
+    required Map<String, int> lastSeen,
+    required bool allowDelegateDm,
+  }) async {
+    final decision = SpeakerSelector.select(
+      block: block,
+      senderKind: sender.kind,
+      leaderKind: _leaderKind,
+      participants: byKind.keys.toList(),
+    );
+    if (decision.isRejected) {
+      _emit(ProtocolWarning(round, decision.error!), round);
+      log.w('round $round: ${block.action.wire} refused — ${decision.error}');
+      return false;
+    }
+
+    final isPrivate = decision.visibility.isPrivate;
+    // §18.1: a public round-open lands in the public thread (null key); a dm
+    // lands in the private thread the selector keyed for this pair.
+    final channelKey = decision.channelKey;
+    for (final kind in decision.targets) {
+      final target = byKind[kind];
+      if (target == null) {
+        _emit(
+          ProtocolWarning(round, 'unknown ${block.action.wire} target "$kind"'),
+          round,
+        );
+        continue;
+      }
+
+      // The invite cap is what stops runaway fan-out, so every dispatched
+      // target costs one credit — `broadcast` is not a way around the cap. A
+      // `dm` is not a public round: it is bounded by the per-agent daily
+      // message cap in _speak and by the one-hop limit below, so it is not
+      // charged here.
+      if (block.action.opensRound && !budget.reserveInvite()) {
+        _emit(
+          ProtocolWarning(
+            round,
+            'invite cap (${budget.maxInvitesPerRound}) reached; '
+            '${target.displayName} not reached',
+          ),
+          round,
+        );
+        log.w('round $round: invite cap reached, stopping dispatch');
+        break;
+      }
+
+      _emit(
+        ProtocolWarning(round, '${block.action.wire} → ${target.displayName}'),
+        round,
+      );
+      _setPhase(OrchestratorPhase.dispatching, round, target.displayName);
+      final packet = _packetFor(
+        seat: target,
+        brief: _dispatchBrief(block, target, isPrivate: isPrivate),
+        round: round,
+        history: _transcript,
+        lastSeen: lastSeen[target.kind],
+        strategy: contextStrategy,
+      );
+      _emit(
+        PacketDispatched(round, target.kind, packet, channelKey: channelKey),
+        round,
+      );
+
+      final reply = await _speak(
+        seat: target,
+        packet: packet,
+        round: round,
+        roundAnswers: roundAnswers,
+        roundSpeakers: roundSpeakers,
+        channelKey: channelKey,
+      );
+      if (reply == null) {
+        log.w(
+          'round $round: ${target.displayName} never answered; '
+          'the leader decides without them',
+        );
+        return true;
+      }
+      lastSeen[target.kind] = round;
+      _relayGuard(reply.rawText, target.kind);
+
+      // §18.1 gives `dm` to any participant, and a delegate is only ever heard
+      // when it is addressed — so look at its reply for one. One hop only: the
+      // reply to a dm is captured, never dispatched from again.
+      if (allowDelegateDm) {
+        await _delegateDispatch(
+          reply: reply,
+          from: target,
+          round: round,
+          roundAnswers: roundAnswers,
+          roundSpeakers: roundSpeakers,
+          lastSeen: lastSeen,
+        );
+      }
+    }
+    return false;
+  }
+
+  /// Look at a delegate's reply for a §18.1 dispatch.
+  ///
+  /// [SpeakerSelector] rejects every dispatch a non-leader may not send, so in
+  /// practice only `dm` survives from here; a delegate that tries to
+  /// `invite`/`broadcast`/`decide` produces a [ProtocolWarning] instead of a
+  /// dispatch. The dm's own reply is never scanned again, which bounds the
+  /// dispatch tree to one hop.
+  Future<void> _delegateDispatch({
+    required Verbatim reply,
+    required CouncilSeat from,
+    required int round,
+    required Map<String, String> roundAnswers,
+    required List<String> Function() roundSpeakers,
+    required Map<String, int> lastSeen,
+  }) async {
+    final parse = CouncilProtocol.parse(
+      reply.rawText,
+      participants: byKind.keys.toList(),
+    );
+    if (parse.hasError) {
+      _emit(ProtocolWarning(round, parse.error!), round);
+      log.w(
+        'round $round: ${from.displayName} protocol error — ${parse.error}',
+      );
+      return;
+    }
+    final block = parse.block;
+    if (block == null) return;
+    await _dispatch(
+      block: block,
+      sender: from,
+      round: round,
+      roundAnswers: roundAnswers,
+      roundSpeakers: roundSpeakers,
+      lastSeen: lastSeen,
+      allowDelegateDm: false,
+    );
   }
 
   TaskPacket _packetFor({
@@ -677,14 +825,30 @@ class Orchestrator {
     );
   }
 
-  /// The delegate's task, built from the leader's invite block.
-  Brief _inviteBrief(CouncilBlock block, CouncilSeat target) {
+  /// The task sent to one dispatched seat.
+  ///
+  /// §18.1: a public round is leader-opened (`invite`/`broadcast`) and the
+  /// delegate answers in the public thread; a `dm` is a private thread between
+  /// two seats. A delegate is told it may open a `dm` — that is the one
+  /// dispatch power R1 grants a non-leader — and that it may not open public
+  /// rounds.
+  Brief _dispatchBrief(
+    CouncilBlock block,
+    CouncilSeat target, {
+    required bool isPrivate,
+  }) {
     final constraints = <String>[
       if (block.expect != null && block.expect!.trim().isNotEmpty)
         'Deliver exactly this: ${block.expect!.trim()}',
       'You are ${target.displayName}'
           '${target.roleCard == null ? '' : ', acting as ${target.roleCard}'}.',
-      'Answer the task. Do not attempt to invite other agents yourself.',
+      if (isPrivate)
+        'This is a private thread; only you and the other agent see it. '
+            'Reply in the same private thread.'
+      else
+        'Answer the task in the public thread. Only the leader opens public '
+            'rounds, so do not invite or broadcast yourself.',
+      if (!target.isLeader) CouncilProtocol.delegateDmRule(),
     ];
     return Brief(
       objective: (block.task ?? 'Respond to the council.').trim(),

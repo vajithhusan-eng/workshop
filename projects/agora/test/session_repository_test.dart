@@ -385,4 +385,82 @@ void main() {
     final rows = await repo.watchMessages(id).first;
     expect(rows.single.rawText, 'live');
   });
+
+  group('channels (§18.1 threads)', () {
+    test('the public channel is a stable, idempotent row', () async {
+      final id = await repo.createSession(prompt: 'p', seats: [seat('gemini')]);
+
+      final first = await repo.ensurePublicChannel(id);
+      final second = await repo.ensurePublicChannel(id);
+
+      expect(first.id, 'ch:$id:public');
+      expect(second.id, first.id);
+      expect(first.kind, SessionRepository.channelKindPublic);
+      expect(first.displayName, 'Council');
+      expect(await repo.channels(id), hasLength(1));
+      expect((await repo.channel(first.id))!.id, first.id);
+    });
+
+    test('a dm channel is symmetric and private', () async {
+      final id = await repo.createSession(prompt: 'p', seats: [seat('gemini')]);
+
+      final ab = await repo.ensureDmChannel(
+        id,
+        'chatgpt',
+        'gemini',
+        aName: 'ChatGPT',
+        bName: 'Gemini',
+      );
+      final ba = await repo.ensureDmChannel(id, 'gemini', 'chatgpt');
+
+      expect(ab.id, ba.id, reason: 'a dm belongs to the pair, not the sender');
+      expect(ab.kind, SessionRepository.channelKindPrivate);
+      expect(ab.displayName, 'ChatGPT ⇄ Gemini');
+      // The reverse lookup reuses the row instead of churning the label.
+      expect(ba.displayName, 'ChatGPT ⇄ Gemini');
+      expect(ab.members, '["chatgpt","gemini"]');
+      expect(await repo.channels(id), hasLength(1));
+    });
+
+    test('messages land in the thread they were recorded into', () async {
+      final id = await repo.createSession(prompt: 'p', seats: [seat('gemini')]);
+      final agent = (await repo.allAgents()).single;
+      final dm = await repo.ensureDmChannel(id, 'chatgpt', 'gemini');
+
+      await repo.record(
+        sessionId: id,
+        round: 1,
+        agentId: agent.id,
+        role: 'agent',
+        direction: 'in',
+        rawText: 'public words',
+      );
+      await repo.record(
+        sessionId: id,
+        round: 1,
+        agentId: agent.id,
+        role: 'agent',
+        direction: 'in',
+        rawText: 'private words',
+        channelId: dm.id,
+      );
+
+      final public = await repo.channelMessages(null);
+      final private = await repo.channelMessages(dm.id);
+      expect(public.map((m) => m.rawText), ['public words']);
+      expect(private.map((m) => m.rawText), ['private words']);
+      // The session-wide view is still a superset — verbatim storage loses
+      // nothing by gaining threads.
+      expect(await repo.messageCount(id), 2);
+    });
+
+    test('watchChannels emits the created dm thread', () async {
+      final id = await repo.createSession(prompt: 'p', seats: [seat('gemini')]);
+      expect(await repo.watchChannels(id).first, isEmpty);
+
+      final dm = await repo.ensureDmChannel(id, 'chatgpt', 'gemini');
+      final rows = await repo.watchChannels(id).first;
+      expect(rows.single.id, dm.id);
+    });
+  });
 }

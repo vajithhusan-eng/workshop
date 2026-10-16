@@ -255,4 +255,139 @@ My analysis says the electrolyte is fine.
       expect(r.block!.action, CouncilAction.decide);
     });
   });
+
+  // ---------------------------------------------------------------------
+  // Amendment R1 (§18.1) — the two actions the pre-R1 parser could not see.
+  // ---------------------------------------------------------------------
+  group('broadcast', () {
+    test('parses with no target and is a leader-opened public round', () {
+      const reply =
+          '```council\n{"action":"broadcast","task":"Everyone review"}\n```';
+      final r = CouncilProtocol.parse(reply);
+      expect(r.isUsable, isTrue);
+      expect(r.block!.action, CouncilAction.broadcast);
+      expect(r.block!.action.wire, 'broadcast');
+      expect(r.block!.agent, isNull);
+      expect(r.block!.action.opensRound, isTrue);
+      expect(r.block!.action.isLeaderOnly, isTrue);
+    });
+  });
+
+  group('dm', () {
+    test('parses with a target and is private and open to any sender', () {
+      const reply =
+          '```council\n{"action":"dm","agent":"gemini","task":"Sync first"}\n```';
+      final r = CouncilProtocol.parse(
+        reply,
+        participants: const ['gpt', 'gemini'],
+      );
+      expect(r.isUsable, isTrue);
+      expect(r.block!.action, CouncilAction.dm);
+      expect(r.block!.action.wire, 'dm');
+      expect(r.block!.agent, 'gemini');
+      expect(r.block!.action.hasTarget, isTrue);
+      expect(r.block!.action.opensRound, isFalse);
+      expect(r.block!.action.isLeaderOnly, isFalse);
+    });
+
+    test('a dm without an agent is refused', () {
+      const reply = '```council\n{"action":"dm"}\n```';
+      final r = CouncilProtocol.parse(reply);
+      expect(r.isUsable, isFalse);
+      expect(r.error, contains('requires "agent"'));
+    });
+
+    test('a dm to a non-participant is refused', () {
+      const reply = '```council\n{"action":"dm","agent":"claude"}\n```';
+      final r = CouncilProtocol.parse(
+        reply,
+        participants: const ['gpt', 'gemini'],
+      );
+      expect(r.isUsable, isFalse);
+      expect(r.error, contains('is not a participant'));
+    });
+  });
+
+  group('action classification (§18.1)', () {
+    test('hasTarget is true only for invite and dm', () {
+      expect(CouncilAction.invite.hasTarget, isTrue);
+      expect(CouncilAction.dm.hasTarget, isTrue);
+      expect(CouncilAction.broadcast.hasTarget, isFalse);
+      expect(CouncilAction.decide.hasTarget, isFalse);
+      expect(CouncilAction.comment.hasTarget, isFalse);
+      expect(CouncilAction.needInput.hasTarget, isFalse);
+    });
+
+    test('opensRound is true only for invite and broadcast', () {
+      expect(CouncilAction.invite.opensRound, isTrue);
+      expect(CouncilAction.broadcast.opensRound, isTrue);
+      expect(CouncilAction.dm.opensRound, isFalse);
+      expect(CouncilAction.decide.opensRound, isFalse);
+      expect(CouncilAction.comment.opensRound, isFalse);
+      expect(CouncilAction.needInput.opensRound, isFalse);
+    });
+
+    test('isLeaderOnly is true for everything except dm', () {
+      for (final a in CouncilAction.values) {
+        expect(a.isLeaderOnly, a != CouncilAction.dm, reason: a.wire);
+      }
+    });
+  });
+
+  group('all five dispatch actions parse (§18.5 item 5)', () {
+    test('every CouncilAction round-trips through its wire name', () {
+      for (final action in CouncilAction.values) {
+        final needsTarget = action.hasTarget;
+        final body = needsTarget
+            ? '{"action":"${action.wire}","agent":"gemini"}'
+            : '{"action":"${action.wire}"}';
+        final r = CouncilProtocol.parse(
+          '```council\n$body\n```',
+          participants: const ['gpt', 'gemini'],
+        );
+        expect(r.isUsable, isTrue, reason: '${action.wire} must parse');
+        expect(r.block!.action, action);
+        expect(r.block!.action.wire, action.wire);
+      }
+    });
+  });
+
+  group('leaderInstructions carries the R1 action set', () {
+    test('names broadcast and dm alongside the originals', () {
+      final s = CouncilProtocol.leaderInstructions(
+        displayName: 'ChatGPT',
+        participants: const [AgentBrief(kind: 'gemini', displayName: 'Gemini')],
+        maxRounds: 12,
+        requireDissent: false,
+      );
+      for (final wire in const [
+        'invite',
+        'broadcast',
+        'dm',
+        'decide',
+        'comment',
+      ]) {
+        expect(
+          s,
+          contains(wire),
+          reason: '$wire must be offered to the leader',
+        );
+      }
+      // The decide example must remain the last fence, or an echoed preamble
+      // would resolve to an earlier action (guarded by the test above).
+      expect(CouncilProtocol.parse(s).block!.action, CouncilAction.decide);
+    });
+  });
+
+  group('delegateDmRule', () {
+    test('offers dm to a delegate and parses back as a dm block', () {
+      final rule = CouncilProtocol.delegateDmRule();
+      expect(rule, contains('"action":"dm"'));
+      // Parsed without a participants list, because the rule shows a
+      // placeholder kind rather than a real roster entry.
+      final r = CouncilProtocol.parse(rule);
+      expect(r.isUsable, isTrue);
+      expect(r.block!.action, CouncilAction.dm);
+    });
+  });
 }

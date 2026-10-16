@@ -28,7 +28,8 @@ Future<void> main(List<String> args) async {
   );
   final pool = TabPool(launch.client);
   try {
-    final targetId = await pool.open('dump', url: url);
+    // `sessionFor` takes the kind, not the target id — the returned id is dead.
+    await pool.open('dump', url: url);
     final session = await pool.sessionFor('dump');
     if (session == null) {
       stderr.writeln('could not attach');

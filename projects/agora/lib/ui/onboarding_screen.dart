@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/chrome/chrome_launcher.dart';
+import '../core/chrome/chrome_mode.dart';
 import '../core/adapters/agent_adapter.dart';
 import '../core/adapters/bundle_loader.dart';
 import '../core/council/login_checker.dart';
@@ -28,6 +29,7 @@ class OnboardingScreen extends StatefulWidget {
   static const prefsKeys = <String, String>{
     'agora.dailyCapPerAgent': '60',
     'agora.chromeVisible': 'true',
+    'agora.chromeMode': 'visible',
     'agora.relayRaw': 'true',
   };
 
@@ -50,7 +52,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   String? _checkError;
 
   bool _cap = true;
-  bool _visibleChrome = true;
+  bool _silentChrome = false;
   bool _rawRelay = true;
 
   @override
@@ -63,7 +65,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final p = await SharedPreferences.getInstance();
     setState(() {
       _cap = int.tryParse(p.getString('agora.dailyCapPerAgent') ?? '60') != 0;
-      _visibleChrome = p.getBool('agora.chromeVisible') ?? true;
+      _silentChrome = ChromeMode.fromSetting(
+        p.getString(ChromeMode.prefKey) ??
+            (p.getBool(ChromeMode.legacyPrefKey) ?? true).toString(),
+      ).isSilent;
       _rawRelay = p.getBool('agora.relayRaw') ?? true;
     });
   }
@@ -122,7 +127,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _savePrefs() async {
     final p = await SharedPreferences.getInstance();
     await p.setString('agora.dailyCapPerAgent', _cap ? '60' : '0');
-    await p.setBool('agora.chromeVisible', _visibleChrome);
+    final mode = _silentChrome ? ChromeMode.silent : ChromeMode.visible;
+    await p.setString(ChromeMode.prefKey, mode.wire);
+    // Keep the legacy bool truthful for anything still reading it.
+    await p.setBool(ChromeMode.legacyPrefKey, mode == ChromeMode.visible);
     await p.setBool('agora.relayRaw', _rawRelay);
   }
 
@@ -347,11 +355,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             const Divider(height: 28),
             _toggle(
-              'Show Chrome while a council runs',
-              'Sites can show a CAPTCHA or expire a sign-in. You need to be '
-                  'able to see and fix that.',
-              value: _visibleChrome,
-              onChanged: (v) => setState(() => _visibleChrome = v),
+              'Start Chrome off-screen (silent)',
+              'Silent keeps the browser window hidden so a long council does '
+                  'not fill your desktop. Agora brings it back the moment a '
+                  'site needs you — a CAPTCHA or an expired sign-in.',
+              value: _silentChrome,
+              onChanged: (v) => setState(() => _silentChrome = v),
             ),
             const Divider(height: 28),
             _toggle(

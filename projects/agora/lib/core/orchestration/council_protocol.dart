@@ -1,15 +1,37 @@
 import 'dart:convert';
 
 /// What the leader is asking Agora to do next.
-enum CouncilAction { invite, decide, comment, needInput }
+///
+/// The first four are the ratified dispatch set from `PLAN.md` §18.1 Amendment
+/// R1; `decide`, `comment` and `needInput` close a round rather than open one.
+enum CouncilAction { invite, broadcast, dm, decide, comment, needInput }
 
 extension CouncilActionX on CouncilAction {
   String get wire => switch (this) {
     CouncilAction.invite => 'invite',
+    CouncilAction.broadcast => 'broadcast',
+    CouncilAction.dm => 'dm',
     CouncilAction.decide => 'decide',
     CouncilAction.comment => 'comment',
     CouncilAction.needInput => 'need_input',
   };
+
+  /// True when the action addresses exactly one named agent kind.
+  ///
+  /// §18.1: `invite` and `dm` both carry an `"agent"` target; `broadcast`
+  /// addresses every participant and therefore carries none.
+  bool get hasTarget =>
+      this == CouncilAction.invite || this == CouncilAction.dm;
+
+  /// True when the action opens a public round.
+  bool get opensRound =>
+      this == CouncilAction.invite || this == CouncilAction.broadcast;
+
+  /// §18.1 sender rule: every action is leader-only except `dm`, which any
+  /// participant may send. `broadcast` in particular is *not* a delegate power
+  /// — it is the old GROUPCHAT round-robin, ratified but kept leader-gated so it
+  /// dispatches explicitly rather than by free text.
+  bool get isLeaderOnly => this != CouncilAction.dm;
 }
 
 /// A successfully parsed ```council block.
@@ -29,7 +51,7 @@ class CouncilBlock {
 
   final CouncilAction action;
 
-  /// Target agent kind, for [CouncilAction.invite].
+  /// Target agent kind, for [CouncilAction.invite] and [CouncilAction.dm].
   final String? agent;
   final String? task;
   final String? context;
@@ -119,6 +141,8 @@ class CouncilProtocol {
     }
     final action = switch (rawAction) {
       'invite' => CouncilAction.invite,
+      'broadcast' => CouncilAction.broadcast,
+      'dm' => CouncilAction.dm,
       'decide' => CouncilAction.decide,
       'comment' => CouncilAction.comment,
       'need_input' => CouncilAction.needInput,
@@ -132,13 +156,14 @@ class CouncilProtocol {
       );
     }
 
-    // Validate the invite target before anything is dispatched.
-    if (action == CouncilAction.invite) {
+    // Validate the addressed target before anything is dispatched. §18.1: both
+    // `invite` and `dm` name exactly one participant; `broadcast` names none.
+    if (action.hasTarget) {
       final target = json['agent'];
       if (target is! String || target.isEmpty) {
         return CouncilParse(
           fence: fence.raw,
-          error: 'invite requires "agent"',
+          error: '${action.wire} requires "agent"',
           participants: participants,
         );
       }
@@ -175,7 +200,7 @@ class CouncilProtocol {
       participants: participants,
       block: CouncilBlock(
         action: action,
-        agent: action == CouncilAction.invite ? json['agent'] as String : null,
+        agent: action.hasTarget ? json['agent'] as String : null,
         task: _str(json['task']),
         context: _str(json['context']),
         expect: _str(json['expect']),
@@ -231,29 +256,38 @@ $roster
 
 HOW TO CONTROL THE COUNCIL
 At the very end of every reply, output exactly one fenced block tagged
-\`\`\`council containing one JSON object. This block is the only thing Agora
+```council containing one JSON object. This block is the only thing Agora
 reads. Everything outside the block is shown to the user as normal prose.
 
 Actions:
-  invite      — ask one participant to speak
+  invite      — ask one participant to speak (opens a public round)
+  broadcast   — send one packet to every other participant (opens a public round)
+  dm          — message one participant privately; only you and they see it
   decide      — the question is settled
   comment     — no action needed, just reporting progress
   need_input  — you need a decision from the human user
 
 Example — invite:
-\`\`\`council
+```council
 {"action":"invite","agent":"gemini","task":"Critique this cathode spec",
  "context":"Previous two rounds, plus the open question","expect":"5 risks, each with a severity","why":"Needs independent physics validation"}
-\`\`\`
+```
+
+Example — broadcast:
+```council
+{"action":"broadcast","task":"Each of you: give your single biggest risk in this design.",
+ "context":"Opening round","expect":"One risk each, no cross-talk","why":"Divergent views before convergence"}
+```
 
 Example — decide:
-\`\`\`council
+```council
 {"action":"decide","status":"solved","answer":"The final answer goes here.",
  "confidence":0.82,"dissent":["gemini disagrees on electrolyte choice"]}
-\`\`\`
+```
 
 Rules:
   - "agent" must be exactly one of the participant kinds listed above.
+  - invite and broadcast open a public round; dm is private to you and its target.
   - Status must be "solved" or "blocked".
   - Emit exactly one council block per reply, as the last thing you write.
   - Answer questions asked of you directly before emitting the block.
@@ -262,6 +296,23 @@ Rules:
 Your name in this council is "$displayName". Begin.
 ''';
   }
+
+  /// The clause appended to a participant's brief so a delegate knows it may
+  /// open a private thread.
+  ///
+  /// §18.1 gives `dm` to *any* participant while keeping `invite` and
+  /// `broadcast` leader-only, so this is the counterpart to
+  /// [leaderInstructions] for a seat that is not leading.
+  static String delegateDmRule() => '''
+You may privately message exactly one other participant. End your reply with
+exactly one block:
+```council
+{"action":"dm","agent":"<participant kind>","task":"what you want from them",
+ "context":"what they need in order to answer","expect":"the shape of a good reply"}
+```
+"agent" must be one of the participant kinds listed in your brief. Only the
+leader may open public rounds (invite or broadcast). Everything outside the
+block is shown to the user as prose.''';
 
   static String? _str(Object? v) =>
       v is String && v.trim().isNotEmpty ? v.trim() : null;

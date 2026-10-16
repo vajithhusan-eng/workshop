@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/database.dart' as db;
 import '../state/agora_controller.dart';
+import 'convergence_graph.dart';
 import 'decision_record_screen.dart';
 import 'theme.dart';
 
@@ -36,6 +37,8 @@ class CouncilPanel extends StatelessWidget {
                       for (final seat in c.seats) _seatCard(context, seat),
                       const SizedBox(height: 6),
                       _addSeat(context),
+                      if (c.runner?.latestConvergence != null)
+                        ConvergenceCard(report: c.runner!.latestConvergence!),
                     ],
                   ),
                 ),
@@ -192,7 +195,7 @@ class CouncilPanel extends StatelessWidget {
     final text = seat.roleCard?.trim();
     if (text == null || text.isEmpty) {
       return InkWell(
-        onTap: () => _editRoleCard(context, null),
+        onTap: () => _editRoleCard(context, seat),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(8),
@@ -211,7 +214,7 @@ class CouncilPanel extends StatelessWidget {
       );
     }
     return InkWell(
-      onTap: () => _editRoleCard(context, text),
+      onTap: () => _editRoleCard(context, seat),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(8),
@@ -225,8 +228,8 @@ class CouncilPanel extends StatelessWidget {
     );
   }
 
-  void _editRoleCard(BuildContext context, String? current) {
-    final t = TextEditingController(text: current ?? '');
+  void _editRoleCard(BuildContext context, db.SessionAgent seat) {
+    final t = TextEditingController(text: seat.roleCard ?? '');
     final messenger = ScaffoldMessenger.maybeOf(context);
     showDialog<void>(
       context: context,
@@ -255,13 +258,14 @@ class CouncilPanel extends StatelessWidget {
           FilledButton(
             onPressed: () {
               final v = t.text.trim();
-              if (v.isNotEmpty) {
-                messenger?.showSnackBar(
-                  const SnackBar(
-                    content: Text('Saved locally; not wired yet.'),
+              c.setSeatRoleCard(seat.agentId, v.isEmpty ? null : v);
+              messenger?.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    v.isEmpty ? 'Role card cleared.' : 'Role card saved.',
                   ),
-                );
-              }
+                ),
+              );
               Navigator.pop(ctx);
             },
             child: const Text('Save'),
@@ -280,7 +284,7 @@ class CouncilPanel extends StatelessWidget {
       case 'unmute':
         c.setSeatStatus(seat.agentId, 'enabled');
       case 'card':
-        _editRoleCard(context, seat.roleCard);
+        _editRoleCard(context, seat);
       case 'kick':
         if (seat.isLeader) {
           ScaffoldMessenger.maybeOf(context)?.showSnackBar(
@@ -395,6 +399,14 @@ class CouncilPanel extends StatelessWidget {
               // Disabled rather than a no-op: the tabs belong to a run, so there
               // is genuinely nothing to capture between councils.
               onPressed: c.councilRunning ? () => c.snapshot() : null,
+            ),
+            IconButton(
+              tooltip: 'Reveal Chrome (R1 §18.2)',
+              icon: const Icon(Icons.open_in_new, size: 16),
+              color: AgoraTheme.dim,
+              // Silent mode parks the windows off-screen. Like snapshot, this
+              // needs a live run — there is no window to reveal otherwise.
+              onPressed: c.councilRunning ? () => c.revealChrome() : null,
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:agora/core/adapters/adapter_config.dart';
 import 'package:agora/core/adapters/agent_adapter.dart';
 import 'package:agora/core/adapters/web_agent_adapter.dart';
 import 'package:agora/core/chrome/chrome_launcher.dart';
+import 'package:agora/core/chrome/chrome_mode.dart';
 import 'package:agora/core/logging.dart';
 
 import 'adapter_loader.dart';
@@ -52,6 +53,7 @@ class LoginChecker {
     required this.adapterLoader,
     this.cdpPort = 9222,
     this.headless = false,
+    this.mode = ChromeMode.visible,
   });
 
   /// Where adapter JSON comes from. Injected rather than imported so the
@@ -60,6 +62,11 @@ class LoginChecker {
 
   final int cdpPort;
   final bool headless;
+
+  /// Whether the Chrome window starts on screen or parked off-screen. Silent
+  /// is for long council runs; the check's own "show me the window" affordance
+  /// pulls the window back regardless (see [openSignInTabs]).
+  final ChromeMode mode;
 
   ChromeLaunchResult? _launch;
   TabPool? _pool;
@@ -72,14 +79,24 @@ class LoginChecker {
   /// the answer.
   Future<void> openSignInTabs(List<String> kinds) async {
     final pool = await _ensurePool();
+    final opened = <String>[];
     for (final kind in kinds) {
       final cfg = await _loadConfig(kind);
       if (cfg == null) continue;
       if (pool.targetOf(kind) != null) continue;
       try {
         await pool.open(kind, url: cfg.homeUrl);
+        opened.add(kind);
       } on Object catch (e) {
         _log.w('could not open a tab for $kind', e);
+      }
+    }
+    // The whole point of this method is a human signing in. Silent mode parked
+    // the window off-screen, so bring each tab we just opened back on screen —
+    // otherwise the user is told to sign in to a window they cannot find.
+    if (mode.isSilent) {
+      for (final kind in opened) {
+        await pool.reveal(kind);
       }
     }
   }
@@ -192,6 +209,7 @@ class LoginChecker {
       preferredPort: cdpPort,
       profileDir: AgoraPaths.chromeProfile,
       headless: headless,
+      silent: mode.isSilent,
     );
     _launch = launch;
     _pool = TabPool(launch.client);

@@ -5,39 +5,108 @@
   "homeUrl": "https://chatgpt.com/",
   "newChatUrl": "https://chatgpt.com/",
   "color": "#10A37F",
-
   "composer": {
     "css": [
+      "textarea",
+      "#pending-home-input",
+      "textarea[placeholder*=\"Ask ChatGPT\"]",
+      "div[role=\"textbox\"][contenteditable=\"true\"]",
+      "div[contenteditable=\"true\"]",
+      "[role=\"textbox\"]",
+      "div[contenteditable=\"true\"][data-placeholder*=\"Message\"]",
+      "textarea[placeholder*=\"Message ChatGPT\"]",
+      "div[aria-label*=\"Message\"]",
+      "form textarea",
       "#prompt-textarea",
+      "textarea[placeholder*=\"Message\"]",
+      "textarea[placeholder*=\"message\"]",
+      "div[role=\"textbox\"]",
+      "div[contenteditable=\"true\"]",
+      "input[type=\"text\"]",
+      "textarea[data-id]",
+      "textarea[aria-label*=\"prompt\"]",
+      "div[contenteditable=\"true\"][data-placeholder*=\"Ask\"]",
+      "div[contenteditable=\"true\"][role=\"textbox\"]",
       "[data-testid=\"prompt-textarea\"]",
       "div#prompt-textarea[contenteditable=\"true\"]",
-      "form textarea[data-testid]",
-      "form textarea",
-      "div[contenteditable=\"true\"][role=\"textbox\"]"
+      "form textarea[data-testid]"
     ],
-    "text": ["ask anything", "message chatgpt", "how can i help"]
+    "text": [
+      "ask anything",
+      "message chatgpt",
+      "how can i help",
+      "ask chatgpt",
+      "ask chatgpt anything",
+      "what's on your mind",
+      "message",
+      "send a message",
+      "type your message",
+      "what's on your mind today?"
+    ]
   },
-
   "send": {
     "css": [
+      "button[aria-label*=\"Send\"]",
+      "button[data-testid=\"send-button\"]",
+      "form button[type=\"submit\"]",
       "button[data-testid=\"send-button\"]",
       "form button[type=\"submit\"]",
       "form button[aria-label*=\"Send\" i]",
-      "button[aria-label*=\"Send prompt\" i]"
+      "button[aria-label*=\"Send prompt\" i]",
+      "button[aria-label*=\"Send\"]",
+      "button[type=\"button\"][aria-label=\"Send\"]",
+      "svg[aria-label=\"Send\"]",
+      "button:has(svg)"
     ],
-    "text": ["send message", "send prompt", "submit"]
+    "text": [
+      "send message",
+      "send prompt",
+      "submit",
+      "send"
+    ]
   },
   "sendWithEnter": true,
-
   "login": {
     "loggedIn": {
       "css": [
+        "form textarea",
+        "main textarea",
+        "[aria-label*=\"Send a message\"]",
+        "[aria-label*=\"Message\"]",
+        "[placeholder*=\"Ask ChatGPT\"]",
+        "#prompt-textarea",
+        "nav[aria-label*=\"ChatGPT\"]",
+        "button:has-text(\"New chat\")",
+        "a[href=\"/\"]",
+        "[data-testid=\"sidebar\"]",
+        "#sidebar",
+        "textarea[placeholder*=\"Message\"]",
+        "textarea",
+        "#pending-home-input",
+        "[role=\"textbox\"]",
+        "div[contenteditable=\"true\"]",
+        "[data-testid=\"user-menu\"]",
+        "[data-testid=\"user-menu-button\"]",
         "[data-testid=\"profile-button\"]",
         "[data-testid=\"accounts-profile-button\"]",
+        "button[aria-label*=\"Profile\"]",
+        "button[aria-label*=\"User\"]",
         "button[data-testid=\"profile-button\"]",
-        "#headlessui-menu-button"
+        "#headlessui-menu-button",
+        "nav a[href*=\"/c/\"]",
+        "nav button[aria-label*=\"New chat\" i]",
+        "a[aria-label*=\"New chat\" i]",
+        "button[aria-label*=\"New Chat\" i]",
+        "aside [role=\"navigation\"]",
+        "div[role=\"button\"][aria-label*=\"profile\" i]"
       ],
-      "text": ["my profile", "account menu", "chat history"]
+      "text": [
+        "my profile",
+        "account menu",
+        "chat history",
+        "profile",
+        "menu"
+      ]
     },
     "loggedOut": {
       "css": [
@@ -45,7 +114,11 @@
         "a[href*=\"/auth/\"]",
         "form[action*=\"auth\"]"
       ],
-      "text": ["log in", "sign up", "continue with google"]
+      "text": [
+        "log in",
+        "sign up",
+        "continue with google"
+      ]
     },
     "captcha": {
       "css": [
@@ -55,7 +128,11 @@
         "iframe[title*=\"challenge\" i]",
         ".cf-challenge"
       ],
-      "text": ["verify you are human", "i'm not a robot", "checking your browser"]
+      "text": [
+        "verify you are human",
+        "i'm not a robot",
+        "checking your browser"
+      ]
     },
     "rateLimited": {
       "css": [],
@@ -68,7 +145,6 @@
       ]
     }
   },
-
   "completion": {
     "stableMs": 1600,
     "pollMs": 400,
@@ -78,11 +154,17 @@
         "button[data-testid=\"stop-button\"]",
         "button[aria-label*=\"Stop\" i]"
       ],
-      "text": ["stop generating", "stop streaming"]
+      "text": [
+        "stop generating",
+        "stop streaming"
+      ]
     },
-    "cancelledText": ["stop", "stop generating", "stop streaming"]
+    "cancelledText": [
+      "stop",
+      "stop generating",
+      "stop streaming"
+    ]
   },
-
   "extraction": {
     "assistantNode": {
       "css": [
@@ -98,14 +180,20 @@
       ]
     },
     "container": {
-      "css": ["main", "#thread", "div[role=\"main\"]"]
+      "css": [
+        "main",
+        "#thread",
+        "div[role=\"main\"]"
+      ]
     },
     "streamingHint": {
-      "css": [".result-streaming", "[data-message-author-role][data-is-streaming]"]
+      "css": [
+        ".result-streaming",
+        "[data-message-author-role][data-is-streaming]"
+      ]
     },
     "screenshotOnStore": true
   },
-
   "modelPicker": {
     "trigger": {
       "css": [
@@ -115,18 +203,48 @@
       ]
     },
     "menu": {
-      "css": ["[role=\"menu\"]", "[role=\"listbox\"]", "div[role=\"dialog\"]"]
+      "css": [
+        "[role=\"menu\"]",
+        "[role=\"listbox\"]",
+        "div[role=\"dialog\"]"
+      ]
     },
     "options": {
-      "gpt-5": { "text": ["gpt-5"] },
-      "gpt-5-thinking": { "text": ["gpt-5 thinking", "gpt-5 (thinking)"] },
-      "gpt-5-mini": { "text": ["gpt-5 mini"] },
-      "o3": { "text": ["o3"] },
-      "o4-mini": { "text": ["o4-mini", "o4 mini"] }
+      "gpt-5": {
+        "text": [
+          "gpt-5"
+        ]
+      },
+      "gpt-5-thinking": {
+        "text": [
+          "gpt-5 thinking",
+          "gpt-5 (thinking)"
+        ]
+      },
+      "gpt-5-mini": {
+        "text": [
+          "gpt-5 mini"
+        ]
+      },
+      "o3": {
+        "text": [
+          "o3"
+        ]
+      },
+      "o4-mini": {
+        "text": [
+          "o4-mini",
+          "o4 mini"
+        ]
+      }
     }
   },
-
-  "knownModels": ["gpt-5", "gpt-5-thinking", "gpt-5-mini", "o3", "o4-mini"],
-
+  "knownModels": [
+    "gpt-5",
+    "gpt-5-thinking",
+    "gpt-5-mini",
+    "o3",
+    "o4-mini"
+  ],
   "notes": "Selectors are ordered best-first; only the first VISIBLE hit wins. If ChatGPT redesigns, drop a fixed copy of this file into ~/.config/agora/adapters/chatgpt.json - no app release needed. Use Calibration Studio (or `dart run tool/sandbox_smoke.dart` healer checks) to regenerate."
 }

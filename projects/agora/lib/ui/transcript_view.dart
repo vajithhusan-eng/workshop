@@ -4,6 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../data/database.dart' as db;
 import '../state/agora_controller.dart';
+import 'conversation_list.dart';
 import 'theme.dart';
 
 /// Centre pane: the verbatim record, round by round.
@@ -57,7 +58,7 @@ class _TranscriptViewState extends State<TranscriptView> {
   /// Follow the debate only while the reader is already at the bottom, so
   /// scrolling back to re-read an earlier round is never yanked away.
   void _maybeFollow() {
-    final n = widget.c.transcript.length;
+    final n = widget.c.channelMessages.length;
     if (n == _lastCount) return;
     _lastCount = n;
     if (!_scroll.hasClients || !_stickToBottom) return;
@@ -75,15 +76,19 @@ class _TranscriptViewState extends State<TranscriptView> {
       return const _Empty('Choose a session, or convene a new council.');
     }
 
-    final rows = c.transcript;
+    final rows = c.channelMessages;
     return Column(
       children: [
         _titleBar(session, rows.length),
+        _channelBar(c),
         Expanded(
           child: rows.isEmpty
-              ? const _Empty(
-                  'Nothing said yet. The transcript fills in verbatim as the '
-                  'council speaks.',
+              ? _Empty(
+                  c.selectedChannelId == null
+                      ? 'Nothing said in the public thread yet. The transcript '
+                            'fills in verbatim as the council speaks.'
+                      : 'No private messages in this thread yet. A dm shows up '
+                            'here only once the agents use it.',
                 )
               : ListView.builder(
                   controller: _scroll,
@@ -154,6 +159,64 @@ class _TranscriptViewState extends State<TranscriptView> {
     ),
   );
 
+  /// §18.1 conversation list for the selected session: the public 'Council'
+  /// thread is always present; each private dm the council opened is a chip.
+  /// Every chip carries real member colours, a live presence dot and the unread
+  /// count — nothing here is invented.
+  Widget _channelBar(AgoraController c) {
+    final dms = c.channels.where((ch) => ch.kind != 'public');
+    final councilKinds = c.seats.map((s) => c.kindOf(s.agentId)).toList();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AgoraTheme.hairline)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ConversationChip(
+              label: 'Council',
+              selected: c.selectedChannelId == null,
+              icon: Icons.groups,
+              memberKinds: councilKinds,
+              colorOf: c.colorOfKind,
+              status: _presenceOf(c, councilKinds),
+              unread: c.unreadFor(null),
+              onTap: () => c.selectChannel(null),
+            ),
+            for (final ch in dms) ...[
+              const SizedBox(width: 6),
+              ConversationChip(
+                label: ch.displayName,
+                selected: c.selectedChannelId == ch.id,
+                icon: Icons.lock,
+                memberKinds: c.memberKindsOf(ch),
+                colorOf: c.colorOfKind,
+                status: _presenceOf(c, c.memberKindsOf(ch)),
+                unread: c.unreadFor(ch.id),
+                onTap: () => c.selectChannel(ch.id),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The strongest presence across a conversation's members: any live turn
+  /// wins, then the first seated status, then unknown.
+  String? _presenceOf(AgoraController c, Iterable<String> kinds) {
+    String? first;
+    for (final k in kinds) {
+      final s = c.statusOfKind(k);
+      if (s == null) continue;
+      if (s == 'running') return 'running';
+      first ??= s;
+    }
+    return first;
+  }
+
   Widget _roundMarker(int round) => Padding(
     padding: const EdgeInsets.fromLTRB(0, 20, 0, 10),
     child: Row(
@@ -203,7 +266,7 @@ class _MessageCard extends StatelessWidget {
             top: BorderSide(
               color: _isAgora ? AgoraTheme.hairline : Colors.transparent,
             ),
-            right: const BorderSide(color: AgoraTheme.hairline),
+            right: BorderSide(color: AgoraTheme.hairline),
             bottom: BorderSide(
               color: _isAgora ? AgoraTheme.hairline : Colors.transparent,
             ),
@@ -316,7 +379,6 @@ class _MessageCard extends StatelessWidget {
 
   Widget _viewMenu(ViewMode mode) => PopupMenuButton<ViewMode>(
     tooltip: 'View as…',
-    icon: const Icon(Icons.visibility_outlined, size: 14),
     color: AgoraTheme.surface2,
     initialValue: mode,
     onSelected: (v) {

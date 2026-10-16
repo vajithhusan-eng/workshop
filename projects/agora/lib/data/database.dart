@@ -50,6 +50,32 @@ class Sessions extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// A conversation thread inside a session.
+///
+/// Amendment R1 (§18.1): the council talks in one **public** thread, and a `dm`
+/// opens a **private** thread between exactly two seats. One row per thread.
+/// `Messages.channelId` names the thread a message belongs to; a null
+/// channelId is the session's default public thread, so every message written
+/// before R1 keeps its meaning.
+class Channels extends Table {
+  TextColumn get id => text()();
+  TextColumn get sessionId => text()();
+
+  /// 'public' | 'private'
+  TextColumn get kind => text()();
+
+  /// Human label: 'Council' for the public thread, 'A ⇄ B' for a dm.
+  TextColumn get displayName => text()();
+
+  /// Members as a JSON array of agent kinds, e.g. '["chatgpt","gemini"]'.
+  TextColumn get members => text().withDefault(const Constant('[]'))();
+
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// The catalogue of AI agents Agora can drive (one row per provider kind).
 class Agents extends Table {
   TextColumn get id => text()();
@@ -103,6 +129,11 @@ class SessionAgents extends Table {
 class Messages extends Table {
   TextColumn get id => text()();
   TextColumn get sessionId => text()();
+
+  /// The thread this message belongs to (see [Channels]). Null is the session's
+  /// default public thread — every message written before R1's channels.
+  TextColumn get channelId => text().nullable()();
+
   IntColumn get round => integer().withDefault(const Constant(0))();
 
   /// Agent id, or 'user' / 'system' / 'orchestrator'.
@@ -240,6 +271,7 @@ class UsageCounters extends Table {
 @DriftDatabase(
   tables: [
     Sessions,
+    Channels,
     Agents,
     SessionAgents,
     Messages,
@@ -257,7 +289,7 @@ class AgoraDb extends _$AgoraDb {
   AgoraDb.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// Indexes for the queries the UI runs on every keystroke and every paint.
   /// drift 2.35's Migrator has no createIndex(name, table, columns:) helper, so
@@ -269,6 +301,8 @@ class AgoraDb extends _$AgoraDb {
         'ON messages (session_id, created_at)',
     'CREATE INDEX IF NOT EXISTS idx_messages_session_round '
         'ON messages (session_id, round)',
+    'CREATE INDEX IF NOT EXISTS idx_messages_channel_created '
+        'ON messages (channel_id, created_at)',
     'CREATE INDEX IF NOT EXISTS idx_journal_session_at '
         'ON journal_events (session_id, at)',
     'CREATE INDEX IF NOT EXISTS idx_usage_counters_day '
@@ -305,6 +339,12 @@ class AgoraDb extends _$AgoraDb {
       // text is rewritten and no data is at risk.
       if (from < 2) {
         await m.addColumn(sessions, sessions.archived);
+      }
+      // v2 -> v3 (Amendment R1 §18.1): channels + Messages.channelId. Additive
+      // only, so no verbatim text is rewritten and no data is at risk.
+      if (from < 3) {
+        await m.createTable(channels);
+        await m.addColumn(messages, messages.channelId);
       }
       // A v1 database also predates the FTS trigger, so re-issue it.
       await customStatement(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/chrome/chrome_launcher.dart';
+import '../core/chrome/chrome_mode.dart';
 import '../state/agora_controller.dart';
 import 'theme.dart';
 
@@ -18,11 +19,13 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   static const _kCap = 'agora.dailyCapPerAgent';
-  static const _kVisible = 'agora.chromeVisible';
   static const _kRaw = 'agora.relayRaw';
 
   int _cap = 60;
-  bool _visible = true;
+
+  /// Visible or off-screen. The legacy `agora.chromeVisible` bool is written
+  /// alongside, kept in sync, so nothing that still reads it is misled.
+  ChromeMode _mode = ChromeMode.visible;
   bool _raw = true;
   List<Map<String, Object?>> _usage = const [];
   bool _loaded = false;
@@ -38,7 +41,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final rows = await widget.controller.repo.usage();
     setState(() {
       _cap = p.getInt(_kCap) ?? 60;
-      _visible = p.getBool(_kVisible) ?? true;
+      _mode = ChromeMode.fromSetting(
+        p.getString(ChromeMode.prefKey) ??
+            (p.getBool(ChromeMode.legacyPrefKey) ?? true).toString(),
+      );
       _raw = p.getBool(_kRaw) ?? true;
       _usage = [
         for (final r in rows)
@@ -60,6 +66,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await p.setInt(key, v);
       case bool v:
         await p.setBool(key, v);
+      case String v:
+        await p.setString(key, v);
     }
   }
 
@@ -84,15 +92,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           _section('Browser', [
             _boolRow(
-              label: 'Show the Chrome window while a council runs',
+              label: 'Start Chrome off-screen (silent)',
               help:
-                  'You can watch every agent work. Agora uses its own Chrome '
-                  'profile at ~/.config/agora/chrome-profile — Chrome 136+ '
+                  'Silent keeps the browser window off-screen so a long council '
+                  'does not fill your desktop with tabs. Agora pulls it back the '
+                  'moment a site needs a human — a captcha or an expired login — '
+                  'and whenever you open a site to sign in. Agora uses its own '
+                  'Chrome profile at ~/.config/agora/chrome-profile; Chrome 136+ '
                   'refuses remote debugging on the default one.',
-              value: _visible,
+              value: _mode.isSilent,
               onChanged: (v) {
-                setState(() => _visible = v);
-                _set(_kVisible, v);
+                final m = v ? ChromeMode.silent : ChromeMode.visible;
+                setState(() => _mode = m);
+                _set(ChromeMode.prefKey, m.wire);
+                // Keep the legacy bool truthful for anything still reading it.
+                _set(ChromeMode.legacyPrefKey, m == ChromeMode.visible);
               },
             ),
           ]),

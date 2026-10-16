@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../logging.dart';
 import '../cdp/cdp_client.dart';
+import 'chrome_mode.dart';
 
 /// Where Agora keeps its own data. Never the user's everyday Chrome profile:
 /// Chrome 136+ refuses `--remote-debugging-port` on the default user-data-dir,
@@ -151,6 +152,7 @@ class ChromeLauncher {
     String? profileDir,
     List<String>? extraArgs,
     bool headless = false,
+    bool silent = false,
   }) async {
     await AgoraPaths.ensureDirs();
 
@@ -200,7 +202,7 @@ class ChromeLauncher {
       '--no-default-browser-check',
       // Avoid Chrome's own automation banner.
       '--disable-features=Translate,MediaRouter,OptimizationHints',
-      if (headless) '--headless=new',
+      ...chromeWindowArgs(headless: headless, silent: silent),
       ...?extraArgs,
       'about:blank',
     ];

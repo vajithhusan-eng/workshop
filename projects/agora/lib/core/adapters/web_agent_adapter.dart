@@ -130,12 +130,17 @@ class WebAgentAdapter implements AgentAdapter {
       // Short first wait only. A logged-out / CAPTCHA / rate-limit page has no
       // composer at all, so we must probe login state early instead of burning
       // the full composer timeout on a page that will never render one.
-      await _waitForComposer(timeout: const Duration(seconds: 4));
+      await _waitForComposer(timeout: const Duration(seconds: 8));
 
-      final LoginState state = await checkLogin();
+      LoginState state = await checkLogin();
       if (!state.isReady) {
-        _emit(AgentPhase.blocked, detail: state.message);
-        return state;
+        // Try one more time with composer directly for modern UIs
+        if (await _hasComposer()) {
+          state = LoginState.ready;
+        } else {
+          _emit(AgentPhase.blocked, detail: state.message);
+          return state;
+        }
       }
 
       // Only now insist on a composer — we know we are signed in now.
@@ -212,9 +217,9 @@ class WebAgentAdapter implements AgentAdapter {
       if (r['found'] == true) return LoginState.ready;
     }
 
-    // Fall back to "can we see the composer?".
-    final bool composer = await _hasComposer();
-    if (composer) return LoginState.ready;
+    // Also treat "we can see a composer" as logged in for modern sites where
+    // logged-in buttons may not appear immediately.
+    if (await _hasComposer()) return LoginState.ready;
 
     return LoginState(
       status: LoginStatus.needsRepair,

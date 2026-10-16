@@ -7,6 +7,7 @@ import 'package:agora/core/orchestration/convergence.dart';
 import 'package:agora/core/orchestration/orchestrator.dart';
 import 'package:agora/core/orchestration/prompt_compiler.dart';
 import 'package:agora/core/orchestration/safety.dart';
+import 'package:agora/core/orchestration/speaker_selector.dart';
 import 'package:agora/core/util/hashing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -132,6 +133,11 @@ String decide(String answer, {double confidence = 0.85, String? dissent}) =>
 
 String verdict(double score, double confidence) =>
     '```council_score\n{"score":$score,"confidence":$confidence}\n```';
+
+/// A §18.1 private dispatch from one participant to another.
+String dm(String agent, String task) =>
+    'Passing this to you privately.\n\n```council\n'
+    '{"action":"dm","agent":"$agent","task":"$task"}\n```';
 
 void main() {
   BudgetGuard budgetOf({
@@ -718,6 +724,87 @@ void main() {
 
       expect(guard.sentToday('chatgpt'), 2);
       expect(guard.sentToday('gemini'), 1);
+    });
+  });
+
+  group('Orchestrator — §18.1 channels', () {
+    test('a public invite is captured with a null channel key', () async {
+      final gpt = FakeAgent(
+        kind: 'chatgpt',
+        displayName: 'GPT',
+        script: <String>[
+          invite('gemini', 'Check the physics.'),
+          decide('done'),
+        ],
+      );
+      final gemini = FakeAgent(
+        kind: 'gemini',
+        displayName: 'Gemini',
+        script: <String>['the numbers check out'],
+      );
+      final o = councilOf(<FakeAgent>[gpt, gemini], leader: 'chatgpt');
+
+      final captured = <MessageCaptured>[];
+      final packets = <PacketDispatched>[];
+      o.events.listen((e) {
+        if (e is MessageCaptured) captured.add(e);
+        if (e is PacketDispatched) packets.add(e);
+      });
+
+      await o.run('go');
+
+      expect(captured.firstWhere((e) => e.kind == 'gemini').channelKey, isNull);
+      expect(
+        packets.firstWhere((e) => e.target == 'gemini').channelKey,
+        isNull,
+      );
+    });
+
+    test('a dm round-trip is captured in the private channel', () async {
+      // The leader opens a public round; the delegate answers publicly and,
+      // inside that same reply, opens a dm to a third agent. Only that dm's
+      // reply belongs to the private thread — the delegate's own words are
+      // already stored, verbatim, in the public one.
+      final gpt = FakeAgent(
+        kind: 'chatgpt',
+        displayName: 'GPT',
+        script: <String>[
+          invite('gemini', 'Check the physics.'),
+          decide('done'),
+        ],
+      );
+      final gemini = FakeAgent(
+        kind: 'gemini',
+        displayName: 'Gemini',
+        script: <String>[dm('claude', 'Privately: double-check the numbers.')],
+      );
+      final claude = FakeAgent(
+        kind: 'claude',
+        displayName: 'Claude',
+        script: <String>['Privately: the numbers check out.'],
+      );
+      final o = councilOf(<FakeAgent>[gpt, gemini, claude], leader: 'chatgpt');
+
+      final captured = <MessageCaptured>[];
+      final packets = <PacketDispatched>[];
+      o.events.listen((e) {
+        if (e is MessageCaptured) captured.add(e);
+        if (e is PacketDispatched) packets.add(e);
+      });
+
+      final key = SpeakerSelector.dmChannelKey('gemini', 'claude');
+      await o.run('go');
+
+      // Gemini answered in public; the dm it opened is a private thread.
+      expect(captured.firstWhere((e) => e.kind == 'gemini').channelKey, isNull);
+
+      // The dm target's reply — and the packet that asked for it — are filed
+      // in the private thread, under the symmetric pair key.
+      expect(captured.firstWhere((e) => e.kind == 'claude').channelKey, key);
+      expect(packets.firstWhere((e) => e.target == 'claude').channelKey, key);
+
+      expect(key, 'dm:claude|gemini');
+      expect(SpeakerSelector.dmChannelKey('claude', 'gemini'), key);
     });
   });
 }

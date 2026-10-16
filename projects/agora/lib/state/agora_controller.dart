@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' show Color;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show SystemSound, SystemSoundType;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/database.dart' as db;
 import '../core/adapters/bundle_loader.dart';
+import '../core/chrome/chrome_mode.dart';
 import '../core/council/council_runner.dart';
 import '../data/session_repository.dart';
 
@@ -34,6 +38,35 @@ class AgoraController extends ChangeNotifier {
   List<db.SessionAgent> seats = <db.SessionAgent>[];
   List<db.Agent> agents = <db.Agent>[];
   List<db.Message> transcript = <db.Message>[];
+
+  // ------------------------------------------------------- §18.1 conversations
+  /// Threads for the selected session: the public 'Council' conversation plus
+  /// any private dm channels the council opened.
+  List<db.Channel> channels = <db.Channel>[];
+
+  /// Which conversation the centre pane shows. Null is the public thread.
+  String? selectedChannelId;
+
+  /// Messages in [selectedChannelId], oldest first. The public thread is every
+  /// message with a null `channel_id`.
+  List<db.Message> channelMessages = <db.Message>[];
+
+  /// Unread counts per conversation, keyed by channel id — or 'public' for the
+  /// public thread. Recomputed from Agora's own read marks, never the site's.
+  Map<String, int> unread = <String, int>{};
+
+  /// How many messages each conversation held when it was last read, keyed like
+  /// [unread]. A count, not a timestamp: drift stores `createdAt` at whole-second
+  /// granularity, so two turns in the same second are indistinguishable.
+  /// Persisted under `agora.readMarks`.
+  final Map<String, int> _readMarks = <String, int>{};
+  bool _readMarksLoaded = false;
+  bool _disposed = false;
+
+  /// The public thread's key in [unread] and the read marks: its messages carry
+  /// a null `channel_id`, so it needs a name of its own.
+  static const String _publicKey = 'public';
+  static const String _kReadMarks = 'agora.readMarks';
 
   db.Session? get current {
     if (selectedId == null) return null;
@@ -75,6 +108,8 @@ class AgoraController extends ChangeNotifier {
   StreamSubscription<void>? _sessionsSub;
   StreamSubscription<void>? _seatsSub;
   StreamSubscription<void>? _messagesSub;
+  StreamSubscription<void>? _channelSub;
+  StreamSubscription<void>? _channelMessagesSub;
   StreamSubscription<void>? _agentsSub;
 
   void start() {
@@ -98,10 +133,17 @@ class AgoraController extends ChangeNotifier {
     selectedId = id;
     seats = <db.SessionAgent>[];
     transcript = <db.Message>[];
+    channels = <db.Channel>[];
+    selectedChannelId = null;
+    channelMessages = <db.Message>[];
     _seatsSub?.cancel();
     _messagesSub?.cancel();
+    _channelSub?.cancel();
+    _channelMessagesSub?.cancel();
     _seatsSub = null;
     _messagesSub = null;
+    _channelSub = null;
+    _channelMessagesSub = null;
     if (id != null) {
       _seatsSub = repo.watchSeats(id).listen((rows) {
         seats = rows;
@@ -110,16 +152,157 @@ class AgoraController extends ChangeNotifier {
       _messagesSub = repo.watchMessages(id).listen((rows) {
         transcript = rows;
         notifyListeners();
+        // Any insert in the session (a dm included) can change an unread badge.
+        unawaited(_refreshUnread());
       });
+      // §18.1: materialise the public thread so the conversation list always
+      // has at least one entry, then follow every thread in this session.
+      unawaited(repo.ensurePublicChannel(id));
+      _channelSub = repo.watchChannels(id).listen((rows) {
+        channels = rows;
+        // A selected thread that vanished falls back to the public one.
+        if (selectedChannelId != null &&
+            !rows.any((ch) => ch.id == selectedChannelId)) {
+          selectChannel(null);
+        }
+        notifyListeners();
+        unawaited(_refreshUnread());
+      });
+      _markRead(null);
+      _listenChannelMessages(null);
+      unawaited(_refreshUnread());
     }
     notifyListeners();
   }
 
+  /// Switch the centre pane to one §18.1 thread. Null is the public thread.
+  void selectChannel(String? id) {
+    if (selectedChannelId == id && _channelMessagesSub != null) return;
+    selectedChannelId = id;
+    channelMessages = <db.Message>[];
+    _markRead(id);
+    unawaited(_persistReadMarks());
+    _listenChannelMessages(id);
+    notifyListeners();
+  }
+
+  void _listenChannelMessages(String? channelId) {
+    _channelMessagesSub?.cancel();
+    _channelMessagesSub = repo.watchChannelMessages(channelId).listen((rows) {
+      channelMessages = rows;
+      // Whatever the reader is looking at is read, by definition.
+      _markRead(channelId);
+      notifyListeners();
+      unawaited(_refreshUnread());
+    });
+  }
+
+  // ------------------------------------------------- §18.3 unread + presence
+  /// Unread messages in a conversation. Null is the public thread.
+  int unreadFor(String? channelId) => unread[channelId ?? _publicKey] ?? 0;
+
+  /// The adapter kind behind an agent id — how §18.1 channel members are stored.
+  String kindOf(String agentId) => agentFor(agentId)?.kind ?? agentId;
+
+  /// Colour for an adapter kind, by way of the agent that owns it.
+  Color colorOfKind(String kind) {
+    for (final a in agents) {
+      if (a.kind == kind) return colorOf(a.id);
+    }
+    return const Color(0xFF78909C);
+  }
+
+  /// The live seat status for an adapter kind, or null when it has no seat.
+  String? statusOfKind(String kind) {
+    for (final s in seats) {
+      if (kindOf(s.agentId) == kind) return s.status;
+    }
+    return null;
+  }
+
+  /// The member kinds of a §18.1 channel, from its JSON `members` array.
+  List<String> memberKindsOf(db.Channel ch) {
+    try {
+      final decoded = jsonDecode(ch.members);
+      if (decoded is List) return decoded.whereType<String>().toList();
+    } on Object {
+      // A corrupt members blob must not take the chat list down with it.
+    }
+    return const <String>[];
+  }
+
+  Future<void> _loadReadMarks() async {
+    if (_readMarksLoaded) return;
+    _readMarksLoaded = true;
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(_kReadMarks);
+      if (raw == null) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      decoded.forEach((k, v) {
+        if (k is String && v is num) _readMarks[k] = v.toInt();
+      });
+    } on Object {
+      // Cosmetic state. A broken prefs store must not block the UI.
+    }
+  }
+
+  Future<void> _persistReadMarks() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kReadMarks, jsonEncode(_readMarks));
+    } on Object {
+      // Cosmetic state; losing it only costs an unread badge.
+    }
+  }
+
+  /// Recomputes every conversation's unread count: how many messages it holds
+  /// beyond the reader's cursor. A conversation is unread from its creation
+  /// until the reader opens it.
+  Future<void> _refreshUnread() async {
+    await _loadReadMarks();
+    final sid = selectedId;
+    if (sid == null || _disposed) {
+      unread = <String, int>{};
+      return;
+    }
+    final viewed = selectedChannelId ?? _publicKey;
+    final next = <String, int>{};
+    for (final ch in channels) {
+      final isPublic = ch.kind == SessionRepository.channelKindPublic;
+      final key = isPublic ? _publicKey : ch.id;
+      final readCount = _readMarks[key] ?? 0;
+      if (key == viewed) continue;
+      final total = await repo.channelMessageCount(isPublic ? null : ch.id);
+      final n = total - readCount;
+      if (n > 0) next[key] = n;
+    }
+    if (_disposed) return;
+    unread = next;
+    notifyListeners();
+  }
+
+  /// Advances a conversation's cursor to the number of messages it has shown.
+  /// Messages are append-only, so a count cannot drift the way a same-second
+  /// timestamp does.
+  void _markRead(String? channelId) {
+    final key = channelId ?? _publicKey;
+    _readMarks[key] = channelMessages
+        .where((m) => m.channelId == channelId)
+        .length;
+    unread = Map<String, int>.from(unread)..remove(key);
+  }
+
   @override
   void dispose() {
+    _disposed = true;
+    unawaited(_persistReadMarks());
     _sessionsSub?.cancel();
     _seatsSub?.cancel();
     _messagesSub?.cancel();
+    _channelSub?.cancel();
+    _channelMessagesSub?.cancel();
     _agentsSub?.cancel();
     super.dispose();
   }
@@ -242,6 +425,11 @@ class AgoraController extends ChangeNotifier {
   void setSeatStatus(String agentId, String status) =>
       _guard(() => repo.setSeatStatus(selectedId!, agentId, status));
 
+  /// §18.3: the role card is the highest-leverage thing a human gives a seat,
+  /// so it is persisted like any other edit — not kept only in the widget.
+  void setSeatRoleCard(String agentId, String? roleCard) =>
+      _guard(() => repo.setSeatRoleCard(selectedId!, agentId, roleCard));
+
   /// The user's own prompt, stored in the vault like any other turn.
   Future<void> recordUserTurn(String text) => _guard(() async {
     final s = current;
@@ -351,6 +539,7 @@ class AgoraController extends ChangeNotifier {
       sessionId: sessionId,
       kindToAgentId: kindToAgentId,
       adapterLoader: bundleAdapterLoader(),
+      mode: await _chromeMode(),
     );
     _runner = runner;
     notifyListeners();
@@ -376,6 +565,9 @@ class AgoraController extends ChangeNotifier {
       _councilStop = outcome.stop.name;
     } on CouncilBlocked catch (e) {
       _councilError = e.reason;
+      // R1 §18.2: a site needs a human. Nudge them out loud; the runner is
+      // already pulling that window forward.
+      unawaited(_humanAlert());
     } on Object catch (e) {
       _councilError = e.toString();
     } finally {
@@ -386,6 +578,25 @@ class AgoraController extends ChangeNotifier {
       notifyListeners();
     }
     return _councilError == null;
+  }
+
+  /// Reads the P11 launch preference.
+  ///
+  /// A missing or broken preference store must not stop a council, so anything
+  /// unreadable falls back to a visible window — the historical behaviour and
+  /// the safer one, because a window the user cannot find is worse than one
+  /// they can. The legacy `agora.chromeVisible` bool is honoured when the new
+  /// key has never been written.
+  Future<ChromeMode> _chromeMode() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      return ChromeMode.fromSetting(
+        p.getString(ChromeMode.prefKey) ??
+            (p.getBool(ChromeMode.legacyPrefKey) ?? true).toString(),
+      );
+    } on Object {
+      return ChromeMode.visible;
+    }
   }
 
   /// Hard-stops the debate. The orchestrator records the stop as a user
@@ -418,5 +629,25 @@ class AgoraController extends ChangeNotifier {
     }
     notifyListeners();
     return _councilError == null;
+  }
+
+  /// R1 §18.2 — pull the silent Chrome window(s) to the front on demand.
+  ///
+  /// A no-op between councils: the windows belong to a run, so there is
+  /// genuinely nothing to reveal when none is live.
+  Future<void> revealChrome() async {
+    await _runner?.revealAll();
+  }
+
+  /// R1 §18.2 — a blocked run means a site needs a human. Say so out loud,
+  /// because the whole point of silent mode is that the user is looking
+  /// somewhere else. Best-effort: an unsupported platform sound must never be
+  /// the thing that breaks a council.
+  Future<void> _humanAlert() async {
+    try {
+      await SystemSound.play(SystemSoundType.alert);
+    } on Object {
+      // No sound channel — the on-screen block message is the real signal.
+    }
   }
 }

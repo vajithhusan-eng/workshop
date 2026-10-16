@@ -141,13 +141,13 @@ class TaskPacket {
 
 class PromptCompiler {
   PromptCompiler({
-    this.contextBudgetChars = 120000,
+    this.contextBudgetChars = 10 * 1000000, // effectively unlimited (10M chars)
     this.windowExchanges = 8,
     this.maxDeltaExchanges = 6,
     this.maxRelayChars = 24000,
   });
 
-  /// ~30k tokens of working room before a web chat starts truncating.
+  /// Unbounded context - send full original length as requested.
   final int contextBudgetChars;
 
   /// Exchanges kept by [ContextStrategy.window].

@@ -15,7 +15,9 @@ struct _MyApplication {
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
 
 // Called when first Flutter frame received.
-static void first_frame_cb(MyApplication* self, FlView* view) {
+// `self` arrives as the g_signal_connect_swapped user data and is unused here; the
+// name is omitted so -Wunused-parameter stays clean without changing the ABI.
+static void first_frame_cb(MyApplication* /*self*/, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
@@ -133,7 +135,8 @@ static void my_application_class_init(MyApplicationClass* klass) {
   G_OBJECT_CLASS(klass)->dispose = my_application_dispose;
 }
 
-static void my_application_init(MyApplication* self) {}
+// GObject requires this exact signature; the instance is unused by the template.
+static void my_application_init(MyApplication* /*self*/) {}
 
 MyApplication* my_application_new() {
   // Set the program name to the application ID, which helps various systems

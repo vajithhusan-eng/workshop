@@ -5,6 +5,64 @@ import '../data/database.dart' as db;
 import '../state/agora_controller.dart';
 import 'theme.dart';
 
+/// A composer slash command.
+///
+/// Only commands with a real backing action appear here. `PLAN.md` §18.3 names
+/// `/adversarial`, `/fork`, `/template`, `/roles` and `/inject`, but the engine
+/// for each (a one-shot adversarial round, session fork, a template store, a
+/// message injector) does not exist yet — offering them would be a menu of
+/// buttons that do nothing. They stay out until they have an engine behind them.
+class SlashCommand {
+  const SlashCommand(this.name, this.help);
+
+  final String name;
+  final String help;
+}
+
+const List<SlashCommand> kSlashCommands = <SlashCommand>[
+  SlashCommand('stop', 'Stop the running council'),
+  SlashCommand('snapshot', 'Screenshot every live tab into the vault'),
+  SlashCommand('export', 'Export this session as a decision record'),
+  SlashCommand('archived', 'Toggle archived sessions in the sidebar'),
+  SlashCommand('help', 'List the commands'),
+];
+
+/// The `/partial` token under the caret, without the slash, or null.
+///
+/// A slash only opens a command at the very start of the text or right after
+/// whitespace, so a URL like `https://…` is never mistaken for a command, and
+/// the token must be bare letters — typing a space closes the menu.
+String? slashQueryAt(String text, int caret) {
+  if (caret < 0 || caret > text.length) return null;
+  final upto = text.substring(0, caret);
+  final slash = upto.lastIndexOf('/');
+  if (slash < 0) return null;
+  if (slash > 0 && !RegExp(r'\s').hasMatch(upto[slash - 1])) return null;
+  final token = upto.substring(slash + 1);
+  return RegExp(r'^[A-Za-z]*$').hasMatch(token) ? token : null;
+}
+
+/// Commands whose name starts with [query], case-insensitive.
+List<SlashCommand> slashMatches(String query) {
+  final q = query.toLowerCase();
+  return kSlashCommands
+      .where((c) => c.name.startsWith(q))
+      .toList(growable: false);
+}
+
+/// The command a whole-composer text names, or null.
+///
+/// `'/stop'` and `'/stop now'` both resolve to `stop`; an unknown name resolves
+/// to null so it is stored as an ordinary message instead of silently eaten.
+SlashCommand? commandFor(String text) {
+  if (!text.startsWith('/')) return null;
+  final name = text.substring(1).split(RegExp(r'\s')).first;
+  for (final c in kSlashCommands) {
+    if (c.name == name) return c;
+  }
+  return null;
+}
+
 /// Bottom pane: state the problem, address the council, send.
 ///
 /// `@` routing is an addressing aid for the human. It never dispatches — per
@@ -23,11 +81,12 @@ class _ComposerState extends State<Composer> {
   final _text = TextEditingController();
   final _focus = FocusNode();
   String? _mentionQuery;
+  String? _slashQuery;
 
   @override
   void initState() {
     super.initState();
-    _text.addListener(_detectMention);
+    _text.addListener(_detectSuggestions);
   }
 
   @override
@@ -37,12 +96,16 @@ class _ComposerState extends State<Composer> {
     super.dispose();
   }
 
-  /// The `@partial` token under the caret, or null when the caret is not
-  /// inside one.
-  void _detectMention() {
+  /// The `@partial` and `/partial` tokens under the caret, if either is open.
+  void _detectSuggestions() {
     final sel = _text.selection;
     if (!sel.isValid || !sel.isCollapsed) {
-      if (_mentionQuery != null) setState(() => _mentionQuery = null);
+      if (_mentionQuery != null || _slashQuery != null) {
+        setState(() {
+          _mentionQuery = null;
+          _slashQuery = null;
+        });
+      }
       return;
     }
     final upto = _text.text.substring(0, sel.baseOffset);
@@ -50,9 +113,18 @@ class _ComposerState extends State<Composer> {
     final match = at < 0
         ? null
         : RegExp(r'@([A-Za-z0-9_-]*)$').firstMatch(upto.substring(at));
-    final next = match?.group(1);
-    if (next != _mentionQuery) setState(() => _mentionQuery = next);
+    final nextMention = match?.group(1);
+    final nextSlash = slashQueryAt(_text.text, sel.baseOffset);
+    if (nextMention != _mentionQuery || nextSlash != _slashQuery) {
+      setState(() {
+        _mentionQuery = nextMention;
+        _slashQuery = nextSlash;
+      });
+    }
   }
+
+  List<SlashCommand> get _slashMatches =>
+      _slashQuery == null ? const <SlashCommand>[] : slashMatches(_slashQuery!);
 
   List<db.Agent> get _candidates {
     final q = _mentionQuery;
@@ -108,16 +180,131 @@ class _ComposerState extends State<Composer> {
   Future<void> _send() async {
     final c = widget.c;
     final text = _text.text.trim();
-    if (text.isEmpty || c.selectedId == null) return;
+    if (text.isEmpty) return;
+
+    // A command is only a command when the whole draft names one. Anything else
+    // is an ordinary message, so a stray '/' is never silently eaten.
+    final cmd = commandFor(text);
+    if (cmd != null) {
+      _text.clear();
+      if (mounted) {
+        setState(() {
+          _mentionQuery = null;
+          _slashQuery = null;
+        });
+      }
+      await _runSlash(cmd);
+      return;
+    }
+
+    if (c.selectedId == null) return;
     await c.recordUserTurn(text);
     _text.clear();
-    if (mounted) setState(() => _mentionQuery = null);
-    final err = c.lastError;
-    if (err != null && mounted) {
-      ScaffoldMessenger.maybeOf(
-        context,
-      )?.showSnackBar(SnackBar(content: Text(err)));
+    if (mounted) {
+      setState(() {
+        _mentionQuery = null;
+        _slashQuery = null;
+      });
     }
+    final err = c.lastError;
+    if (err != null) _snack(err);
+  }
+
+  /// Runs a slash command. Every branch calls a real controller method — there
+  /// is no command here whose engine does not exist.
+  Future<void> _runSlash(SlashCommand cmd) async {
+    final c = widget.c;
+    switch (cmd.name) {
+      case 'help':
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Commands'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                for (final sc in kSlashCommands)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Text(
+                      '/${sc.name}  —  ${sc.help}',
+                      style: AgoraTheme.mono,
+                    ),
+                  ),
+              ],
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        );
+      case 'stop':
+        if (!c.councilRunning) {
+          _snack('No council is running.');
+          return;
+        }
+        c.interruptCouncil();
+        _snack('Stopping the council at the next round boundary…');
+      case 'snapshot':
+        if (!c.councilRunning) {
+          _snack('No live tabs to capture.');
+          return;
+        }
+        final ok = await c.snapshot();
+        _snack(
+          ok
+              ? 'Snapshot saved to the vault.'
+              : (c.councilError ?? 'Snapshot failed.'),
+        );
+      case 'export':
+        if (c.selectedId == null) {
+          _snack('Select a session first.');
+          return;
+        }
+        final doc = await c.export();
+        final n = (doc['messages'] as List?)?.length ?? 0;
+        _snack('Exported $n messages.');
+      case 'archived':
+        c.toggleShowArchived();
+        _snack(
+          c.showArchived
+              ? 'Showing archived sessions.'
+              : 'Hiding archived sessions.',
+        );
+      default:
+        _snack('Unknown command /${cmd.name}.');
+    }
+  }
+
+  void _snack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Completes the `/partial` under the caret to `/name `, closing the menu.
+  void _insertSlash(SlashCommand cmd) {
+    final sel = _text.selection;
+    if (!sel.isValid) return;
+    final upto = _text.text.substring(0, sel.baseOffset);
+    final slash = upto.lastIndexOf('/');
+    if (slash < 0) return;
+    final next = _text.text.replaceRange(
+      slash,
+      sel.baseOffset,
+      '/${cmd.name} ',
+    );
+    _text.value = TextEditingValue(
+      text: next,
+      selection: TextSelection.collapsed(offset: slash + cmd.name.length + 2),
+    );
+    _focus.requestFocus();
   }
 
   @override
@@ -132,6 +319,7 @@ class _ComposerState extends State<Composer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_slashMatches.isNotEmpty) _slashSuggestions(),
           if (_candidates.isNotEmpty) _suggestions(),
           if (_mentions.isNotEmpty) _mentionChips(),
           Row(
@@ -163,7 +351,7 @@ class _ComposerState extends State<Composer> {
                       style: AgoraTheme.mono,
                       decoration: InputDecoration(
                         hintText: enabled
-                            ? 'State the problem…  @chatgpt @gemini @deepseek'
+                            ? 'State the problem…  @chatgpt @gemini  ·  / for commands'
                             : 'Select a session first',
                         hintStyle: AgoraTheme.caption,
                       ),
@@ -200,6 +388,26 @@ class _ComposerState extends State<Composer> {
       ),
     );
   }
+
+  Widget _slashSuggestions() => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: <Widget>[
+        for (final cmd in _slashMatches)
+          Tooltip(
+            message: cmd.help,
+            child: ActionChip(
+              avatar: const Icon(Icons.terminal, size: 13),
+              label: Text('/${cmd.name}', style: AgoraTheme.mono),
+              onPressed: () => _insertSlash(cmd),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+      ],
+    ),
+  );
 
   Widget _suggestions() => Padding(
     padding: const EdgeInsets.only(bottom: 6),

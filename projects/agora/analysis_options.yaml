@@ -1,11 +1,8 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
-  strict-raw-type: false
-  discard_forgone_matches: false
   errors:
     missing_return: false
-    unnecessary_null_comparison_in_spread: false
   exclude:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
@@ -16,6 +13,16 @@ analyzer:
     - web/**
     - windows/**
     - macos/**
+    # linux/** is inert, and that is a fact, not an oversight.
+    # `dart analyze` only reads .dart files; linux/ currently contains zero of them
+    # (only .cc/.h/CMakeLists/.desktop/.xml), so deleting this line changes the
+    # analyze result by exactly nothing -- measured, not assumed.
+    # The C++ runner is NOT covered by the Dart analyzer and never was. It is
+    # checked separately by tool/cpp_lint.sh (clang++ -fsyntax-only -Wall -Wextra
+    # over git-tracked linux/ C++ only, which also skips the gitignored vendored
+    # engine headers under linux/flutter/ephemeral/).
+    # Keeping this line so a stray future .dart file under linux/ is still opted out
+    # deliberately rather than accidentally analysed.
     - linux/**
 
 linter:
@@ -24,7 +31,6 @@ linter:
     - avoid_empty_else
     - avoid_print
     - avoid_relative_lib_imports
-    - avoid_returning_null_for_future
     - avoid_slow_async_io
     - avoid_types_as_parameter_names
     - avoid_unnecessary_containers
@@ -39,7 +45,6 @@ linter:
     - no_duplicate_case_values
     - no_logic_in_create_state
     - no_runtimeType_toString
-    - prefer_adjacent_string_values
     - prefer_collection_literals
     - prefer_conditional_assignment
     - prefer_final_fields
@@ -52,8 +57,5 @@ linter:
     - sized_box_for_whitespace
     - sort_child_properties_last
     - unnecessary_const
-    - unnecessary_newline_in_groups
     - unnecessary_null_in_if_null_operators
     - unnecessary_string_interpolations
-    - unused_import
-    - unused_local_variable

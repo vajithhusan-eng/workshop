@@ -5,9 +5,16 @@
   "homeUrl": "https://chat.deepseek.com/",
   "newChatUrl": "https://chat.deepseek.com/",
   "color": "#4D6BFE",
-
   "composer": {
     "css": [
+      "textarea",
+      "div[contenteditable=\"true\"]",
+      "div[role=\"textbox\"]",
+      "textarea[placeholder*=\"Ask\"]",
+      "div[contenteditable=\"true\"]",
+      "div[role=\"textbox\"][contenteditable=\"true\"]",
+      ".fbb737a4 div[contenteditable=\"true\"]",
+      "div.ProseMirror",
       ".fbb737a4 div[contenteditable=\"true\"]",
       ".fbb737a4 textarea",
       "div[class*=\"fbb737a4\"] div[contenteditable=\"true\"]",
@@ -16,9 +23,12 @@
       "div[contenteditable=\"true\"][role=\"textbox\"]",
       "textarea"
     ],
-    "text": ["send a message", "ask deepseek", "enter your message"]
+    "text": [
+      "send a message",
+      "ask deepseek",
+      "enter your message"
+    ]
   },
-
   "send": {
     "css": [
       ".fbb737a4 button",
@@ -27,27 +37,49 @@
       "button[aria-label*=\"Send\" i]",
       "#chat-input button"
     ],
-    "text": ["send", "submit"]
+    "text": [
+      "send",
+      "submit"
+    ]
   },
   "sendWithEnter": true,
-
   "login": {
     "loggedIn": {
       "css": [
+        "[class*=\"avatar\"]",
+        "button[class*=\"user\"]",
+        ".user-info",
+        "img[alt*=\"avatar\"]",
         ".fbb737a4 + div img",
         "div[class*=\"avatar\"]",
         ".nickName",
         "[data-did]"
       ],
-      "text": ["deepseek", "new chat"]
+      "text": [
+        "deepseek",
+        "new chat"
+      ]
     },
     "loggedOut": {
       "css": [
+        "button:has-text(\"Log in\")",
+        "a[href*=\"login\"]",
+        "button[type=\"button\"][class*=\"login\"]",
+        "div[class*=\"login\"] button",
+        "a:has-text(\"Sign in\")",
         "a[href*=\"login\"]",
         ".login-button",
         "div[class*=\"login\"]"
       ],
-      "text": ["log in", "sign in", "sign up", "login"]
+      "text": [
+        "log in",
+        "sign in",
+        "sign up",
+        "login",
+        "log in",
+        "sign in",
+        "continue"
+      ]
     },
     "captcha": {
       "css": [
@@ -56,7 +88,11 @@
         "iframe[src*=\"captcha\"]",
         ".verify-code"
       ],
-      "text": ["verify", "captcha", "slide to verify"]
+      "text": [
+        "verify",
+        "captcha",
+        "slide to verify"
+      ]
     },
     "rateLimited": {
       "css": [],
@@ -69,18 +105,25 @@
       ]
     }
   },
-
   "completion": {
     "stableMs": 1600,
     "pollMs": 400,
     "timeoutMs": 240000,
     "stopButton": {
-      "css": [".icon-hdstop", "div[class*=\"hdstop\"]", "button[aria-label*=\"Stop\" i]"],
-      "text": ["stop generating", "stop"]
+      "css": [
+        ".icon-hdstop",
+        "div[class*=\"hdstop\"]",
+        "button[aria-label*=\"Stop\" i]"
+      ],
+      "text": [
+        "stop generating",
+        "stop"
+      ]
     },
-    "cancelledText": ["stop"]
+    "cancelledText": [
+      "stop"
+    ]
   },
-
   "extraction": {
     "assistantNode": {
       "css": [
@@ -98,14 +141,20 @@
       ]
     },
     "container": {
-      "css": ["#chat-list", ".ba3654ca", "main"]
+      "css": [
+        "#chat-list",
+        ".ba3654ca",
+        "main"
+      ]
     },
     "streamingHint": {
-      "css": [".loading", "[class*=\"loading\"]"]
+      "css": [
+        ".loading",
+        "[class*=\"loading\"]"
+      ]
     },
     "screenshotOnStore": true
   },
-
   "modelPicker": {
     "trigger": {
       "css": []
@@ -115,8 +164,9 @@
     },
     "options": {}
   },
-
-  "knownModels": ["deepseek-chat", "deepseek-reasoner"],
-
+  "knownModels": [
+    "deepseek-chat",
+    "deepseek-reasoner"
+  ],
   "notes": "DeepSeek ships BUILD-HASHED classnames (.fbb737a4 = message row, .f9f12de = user row, .icon-hdstop = stop button). These change on every deploy, which is exactly why Agora keeps selectors in JSON: when they rot, Calibration Studio regenerates them and the healer proposes a verified replacement without an app release. The text fallbacks are the safety net."
 }

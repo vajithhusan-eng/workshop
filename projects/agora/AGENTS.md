@@ -11,9 +11,10 @@ One session = one chat = one project.
 ## Authority
 
 - `PLAN.md` — **plan of record**, `Status: PLAN APPROVED`. Binding.
-- `PLAN-GROUPCHAT.md` — `Status: PROPOSED`, **untracked in git**. An unratified
-  design amendment, not the contract. It contradicts `PLAN.md` on the dispatch
-  model (see Blocking contradiction). Never treat it as settled.
+- `PLAN-GROUPCHAT.md` — `Status: PROPOSED`, **untracked in git**. **Superseded.** Its
+  D1 round-robin was ratified on 2026-10-06 — but as `PLAN.md` **§18 Amendment R1**,
+  under the approved plan. Keep the file as the record of what was proposed; never
+  cite it as authority over `PLAN.md`.
 - `ARCHITECTURE-legacy.md` — historical Python backend. **Do not build against it.**
 - `STATE.md` — derived build status. Regenerate via the `project-orientation` skill.
 
@@ -52,20 +53,47 @@ One session = one chat = one project.
 - Tests: `test/` for unit, `tool/` for real-Chrome smoke checks. Real-site tests are
   **manual and opt-in only** — never wire them into CI.
 
-## Blocking contradiction — needs a ruling before SpeakerSelector
+## Dispatch model — RESOLVED by Amendment R1 (§18)
 
-`PLAN.md` §2.4 and §8: dispatch **only** from an `invite` block naming one agent;
-free text never dispatches; delegates may not invite peers.
-`PLAN-GROUPCHAT.md` D1: **round-robin broadcast** to all participants, leader may
-force a speaker, no @-mention protocol.
+The contradiction that used to block `SpeakerSelector` is **closed.** `PLAN.md`
+**§18 Amendment R1** was ratified by the user on 2026-10-06 and supersedes §2.4,
+§8, §11 and §17 wherever they conflict. `PLAN-GROUPCHAT.md` D1 is therefore moot —
+round-robin was adopted, but under the approved plan and renamed `broadcast`.
 
-**The code follows `PLAN.md`** (`lib/core/orchestration/orchestrator.dart:494`
-dispatches on `CouncilAction.invite`; `:687` forbids delegate invites).
+| Action | Channel | Who may send it |
+|---|---|---|
+| `invite` | public | leader only |
+| `broadcast` | public | leader only |
+| `dm` | private | **any participant** |
+| `decide` / `comment` / `need_input` | public | leader only |
 
-`TabPool` has since been built and is **dispatch-model-agnostic** — it only owns tabs,
-so it was not wasted under either reading. `SpeakerSelector` genuinely is: choosing
-*who speaks next* is the thing the contradiction is about. It is the last component
-that must wait. Raise it, do not guess.
+**Unchanged non-negotiable: all dispatch comes from strict machine-readable blocks;
+free text never dispatches.** §2.4's "delegates may not invite" ban is *replaced* —
+delegates may `dm` privately, but only the leader opens a public round.
+
+`SpeakerSelector` is **unblocked**: it selects the next speaker from this table
+(invite target, broadcast set, or dm target), never from free text.
+
+**Built** (§18.5, landed 2026-10-10): protocol parser for all five actions · orchestrator
+sender table with channel-aware `MessageCaptured`/`PacketDispatched` ·
+`channels(id, session_id, kind, display_name, members, created_at)` + `messages.channel_id`
+(drift migration v3) and repo CRUD · `CouncilRunner` journals each message into the right
+§18.1 thread · centre pane reads the selected thread · slash-command composer · silent
+Chrome `agora.chromeMode` (P11) with reveal · conversation chips carry real avatar stacks,
+presence dots and unread badges (read state is a per-thread message **count**, not a
+timestamp — drift's `createdAt` is whole seconds).
+
+**Still to build:** the full §18.3 HUD (per-agent context-pressure meters, model picker,
+adversarial/fork/template actions — their engines do not exist) and conversation
+search/pin · ✓/✓✓ read receipts (impossible without site integration) · §18.5.5 UI widget
+tests beyond the conversation chip and the convergence card.
+
+**§18.1 mapping to keep:** public messages are the **null-`channel_id`** rows; the
+`ch:$sessionId:public` row exists only so the chat list has a public conversation. Do not
+"fix" it to filter on its own id — the UI passes `null` for the public thread.
+
+`TabPool` was built dispatch-model-agnostic — it only owns tabs, so it holds under
+either reading and was never wasted.
 
 ## Verified state as of last orientation
 
@@ -78,35 +106,39 @@ goes stale within hours.
 | Phase | Status | Evidence |
 |---|---|---|
 | P0 UI restore | **done** | `main.dart` → `ProviderScope(child: AgoraApp())`; `app.dart` mounts `HomeShell`; 9 files in `lib/ui/` |
-| P1 Chrome launcher | 3/4 | `chrome_launcher.dart` done and now actually launched by `CouncilRunner`; onboarding wizard missing |
-| P2 adapter framework | 3/4 | framework + 3 validating adapters done; Calibration Studio built but does not probe a live page |
-| P3 storage | **done** | `SessionRepository`; `schemaVersion => 2` with a real `onUpgrade`; 19 repository tests |
+| P1 Chrome launcher | **done** | `chrome_launcher.dart` launched by `CouncilRunner`; first-run onboarding wizard in `lib/ui/onboarding_screen.dart` |
+| P2 adapter framework | **done** | framework + 3 validating adapters; `SelectorProber` reports which selector tier resolved on a live page |
+| P3 storage | **done** | `SessionRepository`; `schemaVersion => 3` with a real `onUpgrade` (v2→v3 adds `channels` + `messages.channel_id`); repository tests incl. §18.1 thread tests |
 | P4 orchestrator | **done and reachable** | `CouncilRunner` constructs it; `lib/core/council/` holds `TabPool` + `CouncilRunner` |
 | P5 Gemini/DeepSeek | config only | JSON validates and the sandbox drives them, but no run against a **real** logged-in site yet |
-| P6 safety | ~70% | `safety.dart` done; firewall warnings journaled by `CouncilRunner`; replay still outstanding |
+| P6 safety | **done** | `safety.dart`; firewall warnings journaled by `CouncilRunner`; Time Machine replays captured turns into the Sandbox Lab |
 | P7 packaging | **done** | `tool/build_appimage.sh` → `build/agora-0.1.0-x86_64.AppImage` (11.7 MB), launch-verified |
 
-`flutter test` → **147 passed, 1 skipped, 0 failed**. `dart analyze lib/ test/` → **0 errors,
-0 warnings**. `dart run tool/sandbox_smoke.dart` → 42/42 against real Chrome.
+`flutter test` → **290 passed, 1 skipped, 0 failed**. `dart analyze lib/ test/` → **0 errors,
+0 warnings** (62 info). `dart run tool/sandbox_smoke.dart` → 42/42 against real Chrome.
 
 ### The gap that defines the current stage
 
 **There isn't one any more.** The app launches a real Chrome, opens a tab per AI, runs the
 council and writes every word to the vault. See `STATE.md` for the verified list of what is
-still open — the onboarding wizard, live selector probing, journal replay, trusted typing,
-and `SpeakerSelector`.
+still open — trusted typing, real-site runs for Gemini/DeepSeek/ChatGPT, `linux/**` analysis,
+and `SpeakerSelector` (blocked on the dispatch contradiction below).
 
 ## Known traps
 
 - **Lib typing is JS-synthetic** (`page_script.dart:182`). CDP `Input.insertText` is proven
   in `tool/cdp_smoke.dart:128` but has **0 uses in `lib/`** → fails any `isTrusted` check.
-- `analysis_options.yaml` excludes **`linux/**`** — this AppImage-targeting app never
-  analyzes its own Linux platform runner. Enabling it may surface many lints; treat that
-  as real work, not noise.
-- `tool/dbg2.dart` is untracked scratch and holds the only 2 analyzer warnings. **Another
-  agent commits in this monorepo concurrently and runs `git clean`/`git restore`;** it has
-  already destroyed untracked work here. Commit after every edit and re-`grep` before
-  trusting a result.
+- **`analysis_options.yaml` excludes `linux/**` — but the exclusion is inert, and the C++
+  runner is now actually checked.** `dart analyze` reads only `.dart` files; `linux/` has
+  zero of them, so removing the exclusion changes nothing. The real gap was that
+  `linux/runner/*.cc` was checked by no tool at all. `tool/cpp_lint.sh` closes it via
+  `clang++ -fsyntax-only -Wall -Wextra`, deriving every flag from the real CMake files. Do
+  not "fix" the exclusion by deleting it — the comment there explains why it stays.
+- `tool/dbg2.dart` is untracked scratch. It **no longer carries any analyzer warning**
+  (`dart analyze tool/` → 0 errors, 0 warnings, 28 info) — it is kept only because **another
+  agent commits in this monorepo concurrently and runs `git clean`/`git restore`;** that has
+  already destroyed untracked work here. Do not assume an untracked file is yours to delete.
+  Commit after every edit and re-`grep` before trusting a result.
 - Chrome 136+ blocks `--remote-debugging-port` on the default `--user-data-dir`.
   A **dedicated** profile at `~/.config/agora/chrome-profile` is mandatory. `PLAN.md`
   §0/§1.4 still over-promises "your own logged-in Chrome" — that text is stale, §4.1 is

@@ -6,6 +6,7 @@ import 'package:drift/drift.dart';
 import 'package:path/path.dart' as p;
 
 import '../core/chrome/chrome_launcher.dart';
+import '../core/orchestration/speaker_selector.dart';
 import '../core/util/hashing.dart';
 import 'database.dart' as db;
 
@@ -292,11 +293,28 @@ class SessionRepository {
         .write(db.SessionAgentsCompanion(status: Value(status)));
   }
 
+  /// Persists a seat's role card — §18.3's "give this seat a job". A null or
+  /// empty string clears it, which is why the value is written as-is rather
+  /// than rejected.
+  Future<void> setSeatRoleCard(
+    String sessionId,
+    String agentId,
+    String? roleCard,
+  ) async {
+    await (_db.update(_db.sessionAgents)..where(
+          (t) => t.sessionId.equals(sessionId) & t.agentId.equals(agentId),
+        ))
+        .write(db.SessionAgentsCompanion(roleCard: Value(roleCard)));
+  }
+
   // ---------------------------------------------------------------- messages
 
   /// The verbatim writer. Stores exactly what the adapter captured plus a
   /// 128-bit content hash. Nothing here trims, summarises or reformats text —
   /// that is the whole point of the Verbatim Vault.
+  ///
+  /// [channelId] names the §18.1 thread this message belongs to; null is the
+  /// session's public thread, which is what every pre-R1 caller wrote.
   Future<db.Message> record({
     required String sessionId,
     required int round,
@@ -309,6 +327,7 @@ class SessionRepository {
     int? latencyMs,
     String? packetRef,
     Map<String, dynamic>? meta,
+    String? channelId,
   }) async {
     final id = newId('msg');
     String? screenshotPath;
@@ -338,6 +357,7 @@ class SessionRepository {
       latencyMs: Value(latencyMs),
       packetRef: Value(packetRef),
       meta: Value(meta == null ? null : jsonEncode(meta)),
+      channelId: Value(channelId),
       createdAt: _clock(),
     );
     await _db.into(_db.messages).insert(row);
@@ -375,6 +395,124 @@ class SessionRepository {
               ..addColumns([c])
               ..where(_db.messages.sessionId.equals(sessionId)))
             .getSingle();
+    return row.read(c) ?? 0;
+  }
+
+  // ---------------------------------------------------------------- channels
+
+  /// The two `PLAN.md` §18.1 channel kinds.
+  static const String channelKindPublic = 'public';
+  static const String channelKindPrivate = 'private';
+
+  /// Every session has exactly one public thread, materialised on first use.
+  /// Its id is derived from the session, so it is also stable across restarts.
+  Future<db.Channel> ensurePublicChannel(String sessionId) => _ensureChannel(
+    id: 'ch:$sessionId:public',
+    sessionId: sessionId,
+    kind: channelKindPublic,
+    displayName: 'Council',
+    members: const <String>[],
+  );
+
+  /// A private thread between exactly two agents. The id is symmetric
+  /// ([SpeakerSelector.dmChannelKey] sorts the pair), so the same two agents
+  /// always resolve to the same thread no matter who spoke first.
+  Future<db.Channel> ensureDmChannel(
+    String sessionId,
+    String aKind,
+    String bKind, {
+    String? aName,
+    String? bName,
+  }) {
+    final members = <String>[aKind, bKind]..sort();
+    return _ensureChannel(
+      id: 'ch:$sessionId:${SpeakerSelector.dmChannelKey(aKind, bKind)}',
+      sessionId: sessionId,
+      kind: channelKindPrivate,
+      displayName: '${aName ?? aKind} ⇄ ${bName ?? bKind}',
+      members: members,
+    );
+  }
+
+  Future<db.Channel> _ensureChannel({
+    required String id,
+    required String sessionId,
+    required String kind,
+    required String displayName,
+    required List<String> members,
+  }) async {
+    final existing = await (_db.select(
+      _db.channels,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    if (existing != null) return existing;
+    await _db
+        .into(_db.channels)
+        .insert(
+          db.ChannelsCompanion.insert(
+            id: id,
+            sessionId: sessionId,
+            kind: kind,
+            displayName: displayName,
+            members: Value(jsonEncode(members)),
+            createdAt: _clock(),
+          ),
+        );
+    return (await (_db.select(
+      _db.channels,
+    )..where((t) => t.id.equals(id))).getSingle());
+  }
+
+  Stream<List<db.Channel>> watchChannels(String sessionId) =>
+      (_db.select(_db.channels)
+            ..where((t) => t.sessionId.equals(sessionId))
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          .watch();
+
+  Future<List<db.Channel>> channels(String sessionId) =>
+      (_db.select(_db.channels)
+            ..where((t) => t.sessionId.equals(sessionId))
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          .get();
+
+  Future<db.Channel?> channel(String id) => (_db.select(
+    _db.channels,
+  )..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  /// Messages in one thread, oldest first. A null [channelId] reads the public
+  /// thread — every message written before R1's channels.
+  Stream<List<db.Message>> watchChannelMessages(String? channelId) =>
+      (_db.select(_db.messages)
+            ..where(
+              (t) => channelId == null
+                  ? t.channelId.isNull()
+                  : t.channelId.equals(channelId),
+            )
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          .watch();
+
+  Future<List<db.Message>> channelMessages(String? channelId) =>
+      (_db.select(_db.messages)
+            ..where(
+              (t) => channelId == null
+                  ? t.channelId.isNull()
+                  : t.channelId.equals(channelId),
+            )
+            ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+          .get();
+
+  /// How many messages a thread holds. A null [channelId] counts the public
+  /// thread (the null-`channel_id` rows). Drives §18.3's unread badges — the
+  /// reader's cursor is a message count, not a timestamp, because drift stores
+  /// `createdAt` at whole-second granularity and two turns can share a second.
+  Future<int> channelMessageCount(String? channelId) async {
+    final c = _db.messages.id.count();
+    final q = _db.selectOnly(_db.messages)..addColumns([c]);
+    q.where(
+      channelId == null
+          ? _db.messages.channelId.isNull()
+          : _db.messages.channelId.equals(channelId),
+    );
+    final row = await q.getSingle();
     return row.read(c) ?? 0;
   }
 

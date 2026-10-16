@@ -8,8 +8,11 @@ import '../adapters/adapter_config.dart';
 import '../adapters/web_agent_adapter.dart';
 import '../cdp/cdp_client.dart';
 import '../chrome/chrome_launcher.dart';
+import '../chrome/chrome_mode.dart';
 import '../orchestration/budget.dart';
+import '../orchestration/convergence.dart';
 import '../orchestration/orchestrator.dart';
+import '../orchestration/speaker_selector.dart';
 import '../util/hashing.dart';
 import '../logging.dart';
 import 'adapter_loader.dart';
@@ -51,6 +54,7 @@ class CouncilRunner {
     this.adapterOverrides = const <String, AdapterConfig>{},
     this.cdpPort = 9222,
     this.headless = false,
+    this.mode = ChromeMode.visible,
     this.profileDir,
   });
 
@@ -77,6 +81,11 @@ class CouncilRunner {
   /// to see and fix that. Headless exists for the sandbox harness.
   final bool headless;
 
+  /// Visible or silently parked off-screen (Amendment R1, P11). Only the UI
+  /// layer reads `agora.chromeMode`; the runner stays preference-free and just
+  /// obeys what it is handed.
+  final ChromeMode mode;
+
   /// Chrome's user-data-dir. Null in the app (Agora's own persistent profile,
   /// where the user's logins live); a tool passes a throwaway directory so a
   /// harness never contends with the running app for the same profile lock.
@@ -90,6 +99,19 @@ class CouncilRunner {
   TabPool? _pool;
   Orchestrator? _orchestrator;
   final _adapters = <WebAgentAdapter>[];
+
+  /// kind -> display name, so a dm channel can be named "Gemini ⇄ DeepSeek".
+  final _displayNames = <String, String>{};
+
+  /// Orchestrator channel key -> persisted `channels.id`. The public thread is
+  /// deliberately absent: §18.1 stores it as a null `messages.channel_id`.
+  final _channelIdByKey = <String, String>{};
+  bool _publicChannelEnsured = false;
+
+  /// §18.3 HUD: the latest convergence reading, for the state line and graph.
+  /// Refreshed on every `ConvergenceUpdated`; null until the first round closes.
+  ConvergenceReport? _latestConvergence;
+  ConvergenceReport? get latestConvergence => _latestConvergence;
 
   bool _running = false;
   bool get isRunning => _running;
@@ -161,6 +183,9 @@ class CouncilRunner {
         _note('Connecting to ${seat.displayName}…');
         final login = await adapter.connect();
         if (!login.isReady) {
+          // R1 §18.2: a captcha or an expired login is the one thing only a
+          // human can fix, so put that window in front of them before we stop.
+          await _pool?.reveal(seat.kind);
           throw CouncilBlocked(
             '${seat.displayName} is not ready: '
             '${login.message.isEmpty ? login.status.name : login.message}',
@@ -168,6 +193,7 @@ class CouncilRunner {
         }
         await adapter.newChat();
         _note('${seat.displayName} is signed in and on a fresh chat.');
+        _displayNames[seat.kind] = seat.displayName;
         councilSeats.add(
           CouncilSeat(
             kind: seat.kind,
@@ -255,6 +281,8 @@ class CouncilRunner {
   Future<void> _onEvent(CouncilEvent event) async {
     if (event is MessageCaptured) {
       final agentId = kindToAgentId[event.kind] ?? event.kind;
+      // §18.1: file the message into its channel. Null key = the public thread.
+      final channelId = await _channelIdFor(event.channelKey);
       final v = event.verbatim;
       final meta = <String, dynamic>{
         'adapter': event.kind,
@@ -262,6 +290,7 @@ class CouncilRunner {
       };
       await repo.record(
         sessionId: sessionId,
+        channelId: channelId,
         round: event.round,
         agentId: agentId,
         role: 'agent',
@@ -282,6 +311,7 @@ class CouncilRunner {
         payload: <String, dynamic>{
           'round': event.round,
           'kind': event.kind,
+          'channel': event.channelKey,
           'hash': v.contentHash ?? contentHash(v.rawText),
           'chars': v.rawText.length,
         },
@@ -290,6 +320,9 @@ class CouncilRunner {
     }
     if (event is PacketDispatched) {
       final targetId = kindToAgentId[event.target] ?? event.target;
+      // Materialise the §18.1 thread even if the target never answers, so a dm
+      // the user can see exists the moment it is attempted.
+      await _channelIdFor(event.channelKey);
       await repo.recordPacket(
         sessionId: sessionId,
         round: 0,
@@ -306,6 +339,7 @@ class CouncilRunner {
         payload: <String, dynamic>{
           'round': event.round,
           'target': event.target,
+          'channel': event.channelKey,
           'strategy': event.packet.strategy.name,
           'body': event.packet.body,
         },
@@ -345,6 +379,10 @@ class CouncilRunner {
       _note('Safety warning in round ${event.round}: ${event.report}');
       return;
     }
+    if (event is ConvergenceUpdated) {
+      _latestConvergence = event.report;
+      return;
+    }
     if (event is PhaseChanged) {
       await repo.journal(
         sessionId,
@@ -359,6 +397,7 @@ class CouncilRunner {
       preferredPort: cdpPort,
       profileDir: profileDir ?? AgoraPaths.chromeProfile,
       headless: headless,
+      silent: mode.isSilent,
     );
   }
 
@@ -409,6 +448,61 @@ class CouncilRunner {
       _note('snapshot: ${out.length} tab(s) captured');
     }
     return out;
+  }
+
+  /// R1 §18.2 — the HUD's "Reveal Chrome". In silent mode the windows are
+  /// parked off-screen; this pulls every live one forward so the user can see
+  /// what the agents are looking at and solve what only a human can.
+  Future<void> revealAll() async {
+    final pool = _pool;
+    if (pool == null) return;
+    for (final kind in pool.openKinds) {
+      await pool.reveal(kind);
+    }
+  }
+
+  /// Resolve an orchestrator channel key to a persisted `channels.id`,
+  /// materialising the §18.1 row on first use.
+  ///
+  /// A null key is the public thread. §18.1 files those messages under a null
+  /// `messages.channel_id`, so null is returned as the value to write — but the
+  /// `channels` row still exists, because the chat list needs a public
+  /// conversation to show. Any other key is a dm: split it back into the two
+  /// kinds and let the repository build the symmetric id.
+  Future<String?> _channelIdFor(String? channelKey) async {
+    if (channelKey == null) return _ensurePublicChannel();
+
+    final cached = _channelIdByKey[channelKey];
+    if (cached != null) return cached;
+
+    final members = SpeakerSelector.dmChannelMembers(channelKey);
+    if (members.length != 2) {
+      // A key this build does not understand must not invent a participant:
+      // file the message in the public thread and say so in the log.
+      _log.d(
+        'unrecognised channel key "$channelKey"; filing in the public thread',
+      );
+      return _ensurePublicChannel();
+    }
+    final channel = await repo.ensureDmChannel(
+      sessionId,
+      members[0],
+      members[1],
+      aName: _displayNames[members[0]],
+      bName: _displayNames[members[1]],
+    );
+    _channelIdByKey[channelKey] = channel.id;
+    return channel.id;
+  }
+
+  /// Materialise the public thread once; its messages carry a null channel id
+  /// (§18.1), so this returns null.
+  Future<String?> _ensurePublicChannel() async {
+    if (!_publicChannelEnsured) {
+      await repo.ensurePublicChannel(sessionId);
+      _publicChannelEnsured = true;
+    }
+    return null;
   }
 
   Future<void> _teardown() async {

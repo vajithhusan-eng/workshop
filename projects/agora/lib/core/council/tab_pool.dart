@@ -65,6 +65,53 @@ class TabPool {
     }
   }
 
+  /// Pulls a tab back on screen after a silent launch parked it off-screen.
+  ///
+  /// Silent mode starts the window at `--window-position=-32000,-32000`, which
+  /// keeps it real (it is not headless) but invisible. The moment a site needs a
+  /// human — a captcha, a dead session — that window has to come back, or the
+  /// run would sit forever waiting on a prompt nobody can see. So: ask the
+  /// browser window manager for the window, move it to the top-left and make it
+  /// normal, then bring the page to front.
+  ///
+  /// Best-effort like [bringToFront]: a window that refuses to move must not
+  /// abort the council, and on a platform with no window manager there is
+  /// simply nothing to do.
+  Future<void> reveal(String kind) async {
+    final targetId = _targets[kind];
+    if (targetId == null) return;
+    try {
+      final window =
+          await _client.send(
+                'Browser.getWindowForTarget',
+                params: <String, dynamic>{'targetId': targetId},
+              )
+              as Map<String, dynamic>;
+      final windowId = window['windowId'];
+      if (windowId != null) {
+        await _client.send(
+          'Browser.setWindowBounds',
+          params: <String, dynamic>{
+            'windowId': windowId,
+            'bounds': <String, dynamic>{
+              'windowState': 'normal',
+              'left': 0,
+              'top': 0,
+            },
+          },
+        );
+      }
+      await _client.send(
+        'Page.bringToFront',
+        sessionId: await _sessionFor(targetId),
+      );
+    } on Object {
+      // Reveal is a courtesy to the user, not a correctness requirement. If the
+      // window will not come forward, the site's own request for a human is
+      // still the thing the user needs to see; failing here changes nothing.
+    }
+  }
+
   final Map<String, String> _sessions = <String, String>{};
 
   /// The attached page session for an open kind, or null when that tab is not

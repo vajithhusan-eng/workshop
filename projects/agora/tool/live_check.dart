@@ -15,12 +15,10 @@
 // Exit codes: 0 = all checks green (council mode: dispatch rows present),
 // 1 = a check failed, 2 = a site is signed out / blocked and needs the user
 // to sign in to the visible Chrome window.
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:agora/core/adapters/agent_adapter.dart';
 import 'package:agora/core/adapters/adapter_config.dart';
-import 'package:agora/core/adapters/web_agent_adapter.dart';
 import 'package:agora/core/chrome/chrome_launcher.dart';
 import 'package:agora/core/council/adapter_loader.dart';
 import 'package:agora/core/council/council_runner.dart';

@@ -15,8 +15,9 @@ Concretely:
 2. **Original chats shared**: every agent's verbatim output (text + HTML + screenshot + hash)
    is vaulted and visible in the UI — the agent's real conversation on the real site, not a
    mock.
-3. **Fast, professional council communication**: orchestrator dispatch (invite-only per
-   PLAN.md), journaled and replayable.
+3. **Fast, professional council communication**: orchestrator dispatch (per `PLAN.md`
+   §18 Amendment R1 — leader opens public rounds, any participant may `dm`), journaled
+   and replayable.
 4. **UI direction**: OpenCode-workbench × WhatsApp-chat hybrid — conversation list + bubbles on
    the chat side, tool/workbench panes on the code side. Highest UI/UX/HUD standard.
 
