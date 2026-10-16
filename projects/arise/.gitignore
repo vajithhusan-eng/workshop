@@ -1,0 +1,14 @@
+# Project-local ignores. Add build output and generated sources here; keep the
+# repository's root .gitignore for cross-project patterns.
+
+build/
+.dart_tool/
+__pycache__/
+*.pyc
+.venv/
+
+# Flutter / Dart generated
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/

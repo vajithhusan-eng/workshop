@@ -31,9 +31,13 @@ Two consequences that are structural, not cosmetic:
 | Doc | Role |
 |---|---|
 | `docs/ROADMAP.md` | **The plan of record** — v1 scope, definition of done, milestones, the v1→v20 arc |
+| `docs/FEATURE-SPEC.md` | **What each feature does** — the behavioural contract per feature |
+| `docs/ARCHITECTURE.md` | **How it is built** — modules, data models, engines, storage/routing decisions |
+| `docs/UI-UX-HUD.md` | **How it looks** — palette, components, motion, accessibility, performance |
 | `docs/BEHAVIOR-SCIENCE-DEEP.md` | The science spec; each mechanic cites its paper |
 | `docs/PSYCHOLOGY.md` | The field map + **12 red lines** |
 | `docs/GAMIFICATION-ETHICS.md` | Persuasion-vs-manipulation line; our operational rules |
+| `docs/PORN-MASTURBATION-CONTROL.md` | Highest-stakes domain; **target compulsion, never shame** |
 | `docs/SYSTEM-RESEARCH.md` | Solo Leveling System mechanics + IP boundary |
 | `docs/SYSTEM-GENRE-DEEP.md` | The genre + game-design lineage |
 | `docs/APP-LANDSCAPE.md` | Competitor landscape (ZFA, Habitica, quit-apps, blockers) |
@@ -79,13 +83,16 @@ prestige/Awakening. *(These are v2–v20 — see `docs/ROADMAP.md`.)*
 
 ## Open decisions
 
-- **Package id**: `com.arise.system` proposed, unconfirmed.
 - **Working title**: "Arise" — final name TBD (trademark check before branding).
-- **State management**: leaning Riverpod; decide at M0.
-- **Storage**: leaning Drift or Isar (both offline); decide at M0.
+
+The v1 technical stack is **decided** (recorded in `docs/ARCHITECTURE.md` §11):
+package id `com.arise.system`, **Riverpod** state management, **Drift** (SQLite)
+storage, **go_router** routing, `flutter_local_notifications`, `flutter_animate`
+motion, and **bundled** fonts (no runtime fetch — offline).
 
 ## Current state
 
-**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (7
-research docs) and the orientation files. No Flutter project scaffolded yet.
-Next: M0 (scaffold). See `docs/ROADMAP.md` milestones and `STATE.md`.
+**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (10
+research + design docs) plus the standard project files (README, AGENTS, STATE,
+CHANGELOG, `.gitignore`). No Flutter project scaffolded yet. Next: M0 (scaffold).
+See `docs/ROADMAP.md` milestones and `STATE.md`.
