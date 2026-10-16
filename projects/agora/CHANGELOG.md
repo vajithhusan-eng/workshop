@@ -2,6 +2,25 @@
 
 All changes to Agora, newest first. Entries quote the commit that carried them.
 
+## 2026-10-17 — Linux build and AppImage packaging unblocked
+
+Both were recorded as blocked since 2026-10-06. Neither blocker was real.
+
+- `tool/cpp_lint.sh` → **PASS**, 5 files, 0 errors, 0 warnings, exit 0. The
+  `libgtk-3-dev` / `libglib2.0-dev` absence no longer reproduces; `pkg-config
+  gtk+-3.0` resolves GTK 3.24.52 and glib 2.88.0.
+- `flutter build linux --release` → **PASS**. Its `cmake` traceback was never a
+  missing package: a stale `pip install --user` shim at `~/.local/bin/cmake`,
+  installed under Python 3.12 (the system has since moved to 3.14), still resolves
+  on `PATH` but exits with `ModuleNotFoundError`, shadowing a working
+  `/usr/bin/cmake 4.2.3`. `ninja` is shadowed the same way.
+  `tool/build_appimage.sh` now detects a tool that resolves but does not run and
+  falls back to `/usr/bin`, printing a note instead of dying.
+- AppImage packaging runs `appimagetool`, itself an AppImage, which needs FUSE;
+  mounts are denied here, so the script retries with `APPIMAGE_EXTRACT_AND_RUN=1`
+  after a FUSE failure.
+- Rebuilt `build/agora-0.1.0-x86_64.AppImage` — **12 MB**.
+
 ## 2026-10-17 — analyzer scope + lint sweep (Agora)
 
 `dart analyze` on the package went from **20 errors + 197 info (exit 3)** to

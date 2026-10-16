@@ -6,6 +6,24 @@
 # metainfo and icon, and hand the directory to appimagetool.
 set -euo pipefail
 
+# A `pip install --user` leaves console-script shims in ~/.local/bin that shadow
+# working system binaries. After a Python upgrade they keep resolving on PATH but
+# die with "ModuleNotFoundError", which surfaces as a confusing cmake traceback
+# from `flutter build linux`. Prefer a binary that actually runs over one that
+# merely resolves, and say so rather than failing silently.
+for tool in cmake ninja; do
+  if command -v "$tool" >/dev/null 2>&1 && ! "$tool" --version >/dev/null 2>&1; then
+    if [ -x "/usr/bin/$tool" ] && /usr/bin/"$tool" --version >/dev/null 2>&1; then
+      echo "note: '$tool' on PATH is broken (stale user shim); using /usr/bin/$tool" >&2
+      PATH="/usr/bin:$PATH"
+      export PATH
+    else
+      echo "'$tool' on PATH does not run and /usr/bin/$tool is not usable" >&2
+      exit 1
+    fi
+  fi
+done
+
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 BINARY_NAME="agora"
@@ -50,7 +68,13 @@ OUT="$OUT_DIR/$BINARY_NAME-$VERSION-$ARCH.AppImage"
 
 echo "==> appimagetool"
 rm -f "$OUT"
-ARCH="$ARCH" appimagetool --no-appstream "$APPDIR" "$OUT"
+# appimagetool is itself an AppImage and normally runs from a FUSE mount, which
+# containers and hardened sessions deny ("mount failed: Operation not permitted").
+# The standard escape hatch runs it from a self-extracted copy instead.
+if ! ARCH="$ARCH" appimagetool --no-appstream "$APPDIR" "$OUT"; then
+  echo "==> appimagetool failed (no usable FUSE?); retrying with APPIMAGE_EXTRACT_AND_RUN=1"
+  ARCH="$ARCH" APPIMAGE_EXTRACT_AND_RUN=1 appimagetool --no-appstream "$APPDIR" "$OUT"
+fi
 
 echo
 echo "built $OUT"

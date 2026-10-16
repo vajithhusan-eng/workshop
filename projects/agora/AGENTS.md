@@ -150,6 +150,17 @@ and `SpeakerSelector` (blocked on the dispatch contradiction below).
   A **dedicated** profile at `~/.config/agora/chrome-profile` is mandatory. `PLAN.md`
   §0/§1.4 still over-promises "your own logged-in Chrome" — that text is stale, §4.1 is
   correct.
+- **This machine's `PATH` shadows working tools, and it breaks Flutter builds.** A
+  `pip install --user` run under an older Python left **46 console-script shims** in
+  `~/.local/bin`; the system is now on Python 3.14 while the packages sit under
+  `python3.12`, so each shim still resolves on `PATH` but dies with
+  `ModuleNotFoundError`. `cmake` and `ninja` are the ones that matter — `/usr/bin/cmake`
+  (4.2.3) and `/usr/bin/ninja` are installed and fine. `tool/build_appimage.sh` detects a
+  shim that resolves but does not run and falls back to `/usr/bin`; a bare
+  `flutter build linux` does not, and needs `/usr/bin` ahead of `~/.local/bin`. Related:
+  FUSE mounts are denied here (`fusermount: mount failed: Operation not permitted`), so
+  AppImage packaging needs `APPIMAGE_EXTRACT_AND_RUN=1` — the script retries that way
+  automatically.
 - `PLAN-GROUPCHAT.md` names files that will never exist under those names
   (`security_firewall.dart` → actual `safety.dart`; `context_compiler.dart` →
   `prompt_compiler.dart`). Do not use it as a literal task list.
