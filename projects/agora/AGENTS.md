@@ -136,13 +136,16 @@ and `SpeakerSelector` (blocked on the dispatch contradiction below).
   not "fix" the exclusion by deleting it — the comment there explains why it stays.
 - `tool/dbg2.dart` and its siblings (`run_*.dart`, `check_load*.dart`, `debug*.dart`,
   `probe_fix.dart`) are **ignored scratch — kept on disk, never shipped.** They are dead
-  helpers written against an older API and are the *only* source of analyzer output in
-  `tool/` (whole directory: 4 warnings, 20 errors; tracked sources: 22 info, 0 err, 0 warn —
-  check with `dart analyze $(git ls-files 'tool/*.dart')`). They are `.gitignore`d rather
-  than deleted because **another agent commits in this monorepo concurrently and runs
-  `git clean`/`git restore`;** that has already destroyed untracked work here. Ignoring them
-  additionally makes a plain `git clean -fd` skip them. Do not assume an untracked file is
-  yours to delete. Commit after every edit and re-`grep` before trusting a result.
+  helpers written against an older API and were the *entire* reason a bare `dart analyze`
+  on the package reported 20 errors. They are `.gitignore`d rather than deleted because
+  **another agent commits in this monorepo concurrently and runs `git clean`/`git restore`;**
+  that has already destroyed untracked work here. Ignoring them additionally makes a plain
+  `git clean -fd` skip them. Do not assume an untracked file is yours to delete. Commit
+  after every edit and re-`grep` before trusting a result.
+  `analysis_options.yaml` now **excludes these same globs**, because they are not part of
+  the package and the analyzer must not police files a checkout does not contain. That is
+  a scope fix, not a suppression: `dart analyze` on the package is now clean, and
+  `dart analyze $(git ls-files 'tool/*.dart')` remains the honest check for `tool/`.
 - Chrome 136+ blocks `--remote-debugging-port` on the default `--user-data-dir`.
   A **dedicated** profile at `~/.config/agora/chrome-profile` is mandatory. `PLAN.md`
   §0/§1.4 still over-promises "your own logged-in Chrome" — that text is stale, §4.1 is

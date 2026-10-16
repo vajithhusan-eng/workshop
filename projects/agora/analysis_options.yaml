@@ -7,6 +7,17 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "**/*.hive.dart"
+    # Ignored probe scratch. Dead one-off helpers written against an older API,
+    # gitignored, never shipped, and kept on disk by decision (see AGENTS.md).
+    # They are not part of the package, so the analyzer must not police them:
+    # before these lines they were the *entire* reason a bare `dart analyze` on
+    # the package reported 20 errors. Matched by the same globs as .gitignore.
+    # `dart analyze $(git ls-files 'tool/*.dart')` is the honest check for tool/.
+    - "tool/run_*.dart"
+    - "tool/check_load*.dart"
+    - "tool/debug*.dart"
+    - "tool/dbg2.dart"
+    - "tool/probe_fix.dart"
     - build/**
     - android/**
     - ios/**

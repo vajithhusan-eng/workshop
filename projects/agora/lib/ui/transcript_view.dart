@@ -266,7 +266,7 @@ class _MessageCard extends StatelessWidget {
             top: BorderSide(
               color: _isAgora ? AgoraTheme.hairline : Colors.transparent,
             ),
-            right: BorderSide(color: AgoraTheme.hairline),
+            right: const BorderSide(color: AgoraTheme.hairline),
             bottom: BorderSide(
               color: _isAgora ? AgoraTheme.hairline : Colors.transparent,
             ),

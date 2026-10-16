@@ -83,10 +83,10 @@ void main() {
     });
 
     test('an empty spec is not counted as broken', () {
-      final o = ProbeOutcome(
+      const o = ProbeOutcome(
         slot: 'captcha',
-        spec: const SelectorSpec(),
-        hits: const <SelectorHit>[],
+        spec: SelectorSpec(),
+        hits: <SelectorHit>[],
       );
       expect(o.isEmptySpec, isTrue);
       expect(o.matched, isFalse);
@@ -133,10 +133,10 @@ void main() {
       final p = probe(<ProbeOutcome>[
         ok('composer'),
         dead('send'),
-        ProbeOutcome(
+        const ProbeOutcome(
           slot: 'captcha',
-          spec: const SelectorSpec(),
-          hits: const <SelectorHit>[],
+          spec: SelectorSpec(),
+          hits: <SelectorHit>[],
         ),
       ]);
       expect(p.scoredCount, 2);
@@ -159,11 +159,11 @@ void main() {
       final p = probe(<ProbeOutcome>[
         ok('composer'),
         ok('signed in'),
-        ProbeOutcome(
+        const ProbeOutcome(
           slot: 'signed out',
-          spec: const SelectorSpec(text: <String>['sign in']),
+          spec: SelectorSpec(text: <String>['sign in']),
           kind: SlotKind.state,
-          hits: const <SelectorHit>[],
+          hits: <SelectorHit>[],
         ),
       ]);
       expect(p.broken, isEmpty);
@@ -174,17 +174,17 @@ void main() {
     test('a node that cannot exist yet is unverifiable, not broken', () {
       final p = probe(<ProbeOutcome>[
         ok('composer'),
-        ProbeOutcome(
+        const ProbeOutcome(
           slot: 'assistant node',
-          spec: const SelectorSpec(css: <String>['[data-role="assistant"]']),
+          spec: SelectorSpec(css: <String>['[data-role="assistant"]']),
           kind: SlotKind.conditional,
-          hits: const <SelectorHit>[],
+          hits: <SelectorHit>[],
         ),
-        ProbeOutcome(
+        const ProbeOutcome(
           slot: 'user node',
-          spec: const SelectorSpec(css: <String>['[data-role="user"]']),
+          spec: SelectorSpec(css: <String>['[data-role="user"]']),
           kind: SlotKind.conditional,
-          hits: const <SelectorHit>[],
+          hits: <SelectorHit>[],
         ),
       ]);
       expect(p.broken, isEmpty);

@@ -28,14 +28,14 @@ Future<void> main(List<String> args) async {
       .createTempSync('agora-focus-probe-')
       .path;
   final headless = (Platform.environment['DISPLAY'] ?? '').isEmpty;
-  print('launching Chrome (headless=$headless, profile=$profile) ...');
+  stdout.writeln('launching Chrome (headless=$headless, profile=$profile) ...');
   final launched = await ChromeLauncher().launch(
     preferredPort: port,
     profileDir: profile,
     headless: headless,
   );
   final client = launched.client;
-  print(
+  stdout.writeln(
     'browser: ${client.browserVersion}'
     '${launched.alreadyRunning ? ' (attached to an existing instance)' : ''}\n',
   );
@@ -44,10 +44,10 @@ Future<void> main(List<String> args) async {
   Future<void> check(String label, Future<Object?> Function() call) async {
     try {
       final Object? res = await call();
-      print('  OK   $label${res == null ? '' : ' -> $res'}');
+      stdout.writeln('  OK   $label${res == null ? '' : ' -> $res'}');
     } on Object catch (e) {
       failures++;
-      print('  FAIL $label -> ${e.runtimeType}: $e');
+      stdout.writeln('  FAIL $label -> ${e.runtimeType}: $e');
     }
   }
 
@@ -63,19 +63,19 @@ Future<void> main(List<String> args) async {
   );
   final targetA = '${a['targetId']}';
   final targetB = '${b['targetId']}';
-  print('created targets $targetA (front) and $targetB (background)\n');
+  stdout.writeln('created targets $targetA (front) and $targetB (background)\n');
 
   final Map<String, dynamic> sB = await client.sendMap(
     'Target.attachToTarget',
     params: <String, dynamic>{'targetId': targetB, 'flatten': true},
   );
   final sessionB = '${sB['sessionId']}';
-  print('background session $sessionB\n');
+  stdout.writeln('background session $sessionB\n');
 
   await _send(client, 'Page.enable', sessionB);
   await _send(client, 'Runtime.enable', sessionB);
 
-  print('Emulation / Page calls on a BACKGROUND tab:');
+  stdout.writeln('Emulation / Page calls on a BACKGROUND tab:');
   await check('Emulation.setFocusEmulationEnabled{enabled:true}', () async {
     await _send(
       client,
@@ -113,23 +113,23 @@ Future<void> main(List<String> args) async {
     return 'accepted';
   });
 
-  print('\ntarget list after bringToFront (order is the tab strip order):');
+  stdout.writeln('\ntarget list after bringToFront (order is the tab strip order):');
   try {
     final Map<String, dynamic> targets = await client.sendMap(
       'Target.getTargets',
     );
     for (final t in (targets['targetInfos'] as List? ?? const [])) {
       final m = t as Map<String, dynamic>;
-      print('  ${m['targetId']}  ${m['url']}');
+      stdout.writeln('  ${m['targetId']}  ${m['url']}');
     }
   } on Object catch (e) {
-    print('  (Target.getTargets failed: $e)');
+    stdout.writeln('  (Target.getTargets failed: $e)');
   }
 
   // Exercise TabPool itself, not just the raw calls above. The pool is the code
   // Agora actually ships, so a probe that only proves the CDP verbs would still
   // let a bug in TabPool.capture reach the vault unchecked.
-  print('\nTabPool:');
+  stdout.writeln('\nTabPool:');
   final pool = TabPool(client);
   await check('TabPool.open x2', () async {
     await pool.open('alpha', url: 'data:text/html,<h1>alpha</h1>');
@@ -161,8 +161,9 @@ Future<void> main(List<String> args) async {
     'TabPool.capture on an unknown kind is null, not a throw',
     () async {
       final png = await pool.capture('gamma');
-      if (png != null)
+      if (png != null) {
         throw StateError('expected null, got ${png.length} bytes');
+      }
       return 'null';
     },
   );
@@ -193,7 +194,7 @@ Future<void> main(List<String> args) async {
     // A leftover temp profile is harmless.
   }
 
-  print('\n${failures == 0 ? 'ALL OK' : '$failures FAILED'}');
+  stdout.writeln('\n${failures == 0 ? 'ALL OK' : '$failures FAILED'}');
   exit(failures == 0 ? 0 : 1);
 }
 

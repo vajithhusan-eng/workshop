@@ -62,19 +62,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _set(String key, Object value) async {
     final p = await SharedPreferences.getInstance();
     switch (value) {
-      case int v:
+      case final int v:
         await p.setInt(key, v);
-      case bool v:
+      case final bool v:
         await p.setBool(key, v);
-      case String v:
+      case final String v:
         await p.setString(key, v);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_loaded)
+    if (!_loaded) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(

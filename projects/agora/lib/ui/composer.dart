@@ -363,10 +363,10 @@ class _ComposerState extends State<Composer> {
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  IconButton(
+                  const IconButton(
                     tooltip: 'Hold-to-talk (upgrade D2) — not implemented',
                     onPressed: null,
-                    icon: const Icon(Icons.mic_none, size: 18),
+                    icon: Icon(Icons.mic_none, size: 18),
                   ),
                   const SizedBox(height: 2),
                   Tooltip(
@@ -435,7 +435,7 @@ class _ComposerState extends State<Composer> {
       padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         children: <Widget>[
-          Text('addressing', style: AgoraTheme.caption),
+          const Text('addressing', style: AgoraTheme.caption),
           const SizedBox(width: 8),
           for (final seat in _mentions)
             Padding(
@@ -458,7 +458,7 @@ class _ComposerState extends State<Composer> {
               ),
             ),
           const Spacer(),
-          Text('never dispatches on its own', style: AgoraTheme.caption),
+          const Text('never dispatches on its own', style: AgoraTheme.caption),
         ],
       ),
     );

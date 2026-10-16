@@ -2,6 +2,30 @@
 
 All changes to Agora, newest first. Entries quote the commit that carried them.
 
+## 2026-10-17 — analyzer scope + lint sweep (Agora)
+
+`dart analyze` on the package went from **20 errors + 197 info (exit 3)** to
+**`No issues found!` (exit 0)**.
+
+- Every one of the 20 errors was in the gitignored `tool/` probe scratch
+  (`check_load*.dart`, `debug3.dart`, `debug_connect*.dart`, `probe_fix.dart`) —
+  dead helpers written against an abandoned API. The scratch is kept on disk by
+  decision, so `analysis_options.yaml` now excludes **the same globs as
+  `.gitignore`**. That is a scope fix, not a suppression: the files are not part of
+  a checkout, and the analyzer was the only thing still policing them.
+- `dart fix --apply` cleared 34 findings; the remaining 24 were fixed by hand:
+  `print` → `stdout.writeln` in `tool/focus_probe.dart` (12) and
+  `tool/registry_check.dart` (4); `_isLeader` + getter/setter collapsed to one
+  mutable `bool isLeader` field in `lib/core/orchestration/orchestrator.dart`;
+  `_HOME_NOTE` → `_homeNote`; `r_scoreSeries` → `rScoreSeries`; `FakeAgent.close()`
+  now closes the two `StreamController`s it owns; two `exists()` → `existsSync()` in
+  `lib/core/adapters/adapter_registry.dart`.
+- **Genuine bug fixed.** The Verbatim hash check in `tool/sandbox_smoke.dart`
+  compared a `String?` to a `bool`, so it was vacuously true and asserted nothing.
+  It now asserts `contentHash == contentHash(rawText)`, which is the guarantee
+  `SessionRepository.isIntact` relies on.
+- `flutter test` 290 passed / 1 skipped; `flutter analyze` clean.
+
 ## 2026-10-17 — documentation standard, and Amendment R1
 
 - `0707233` feat(agora): Amendment R1 channels, silent Chrome, conversation UI and tests

@@ -313,13 +313,13 @@ class AgoraController extends ChangeNotifier {
 
   ViewMode viewFor(String messageId) => _perMessage[messageId] ?? _defaultView;
 
-  setDefaultView(ViewMode v) {
+  void setDefaultView(ViewMode v) {
     _defaultView = v;
     notifyListeners();
   }
 
   void cycleView(String messageId) {
-    final order = ViewMode.values;
+    const order = ViewMode.values;
     final next = order[(order.indexOf(viewFor(messageId)) + 1) % order.length];
     _perMessage[messageId] = next;
     notifyListeners();

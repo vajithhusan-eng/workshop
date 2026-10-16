@@ -1,9 +1,9 @@
-import 'package:agora/core/adapters/adapter_config.dart';
-import 'package:agora/core/adapters/agent_adapter.dart';
-import 'package:agora/core/adapters/web_agent_adapter.dart';
-import 'package:agora/core/chrome/chrome_launcher.dart';
-import 'package:agora/core/chrome/chrome_mode.dart';
-import 'package:agora/core/logging.dart';
+import '../adapters/adapter_config.dart';
+import '../adapters/agent_adapter.dart';
+import '../adapters/web_agent_adapter.dart';
+import '../chrome/chrome_launcher.dart';
+import '../chrome/chrome_mode.dart';
+import '../logging.dart';
 
 import 'adapter_loader.dart';
 import 'tab_pool.dart';

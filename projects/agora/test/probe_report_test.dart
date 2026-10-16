@@ -139,7 +139,7 @@ void main() {
                 invalid: false,
               ),
               goodHit,
-              const SelectorHit(
+              SelectorHit(
                 selector: 'message mockai',
                 kind: 'text',
                 total: 1,
@@ -163,13 +163,13 @@ void main() {
   testWidgets('a transport error is shown instead of a verdict', (t) async {
     await render(
       t,
-      SiteProbe(
+      const SiteProbe(
         kind: 'sandbox',
         displayName: 'Mock AI',
         url: 'file:///mock.html',
         loaded: false,
         shadowRoots: 0,
-        outcomes: const <ProbeOutcome>[],
+        outcomes: <ProbeOutcome>[],
         error: 'chrome did not start',
       ),
     );

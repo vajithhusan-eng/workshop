@@ -298,7 +298,7 @@ class PromptCompiler {
       out
         ..writeln()
         ..writeln('## The user\'s original request')
-        ..writeln('${originalPrompt!.trim()}');
+        ..writeln(originalPrompt!.trim());
     }
 
     if (memoryFacts.isNotEmpty) {
@@ -350,7 +350,7 @@ class PromptCompiler {
       truncated = true;
       final keep = body.length - contextBudgetChars;
       // Cut from the middle of the transcript, never the brief.
-      final marker = '\n## Council transcript so far';
+      const marker = '\n## Council transcript so far';
       final at = body.indexOf(marker);
       if (at > 0) {
         final head = body.substring(0, at);
@@ -393,20 +393,20 @@ class PromptCompiler {
     required int maxRounds,
     List<String> priorObjections = const <String>[],
   }) {
-    final brief = Brief(
+    const brief = Brief(
       objective: 'Break the candidate answer below.',
-      constraints: const <String>[
+      constraints: <String>[
         'Attack the reasoning, the assumptions and the numbers, not the '
             'writing style.',
         'If you genuinely cannot find a flaw, say so plainly — a fake objection '
             'is worse than none.',
       ],
-      deliverables: const <String>[
+      deliverables: <String>[
         'Each objection as: claim → why it is wrong → what evidence would settle '
             'it.',
         'A severity: blocker / major / minor.',
       ],
-      acceptance: const <String>[
+      acceptance: <String>[
         'Every objection is specific enough that the author could act on it '
             'without asking you a follow-up question.',
       ],

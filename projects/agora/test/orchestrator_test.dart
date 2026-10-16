@@ -35,7 +35,7 @@ class FakeAgent implements AgentAdapter {
   bool stallForever;
 
   final List<String> received = <String>[];
-  AgentStatus _status = const AgentStatus(AgentPhase.ready);
+  final AgentStatus _status = const AgentStatus(AgentPhase.ready);
   final StreamController<AgentStatus> _statuses =
       StreamController<AgentStatus>.broadcast();
   final StreamController<String> _tokens = StreamController<String>.broadcast();
@@ -101,7 +101,10 @@ class FakeAgent implements AgentAdapter {
   Future<void> interrupt() async {}
 
   @override
-  Future<void> close() async {}
+  Future<void> close() async {
+    await _statuses.close();
+    await _tokens.close();
+  }
 
   @override
   Future<AgentDiagnostics> diagnose() async => AgentDiagnostics(
@@ -509,17 +512,17 @@ void main() {
           displayName: 'GPT',
           script: <String>[
             invite('gemini', 'x'),
-            'Same conclusion as before: LFP is right.' + verdict(9, 0.9),
+            'Same conclusion as before: LFP is right.${verdict(9, 0.9)}',
             invite('gemini', 'x'),
-            'Same conclusion as before: LFP is right.' + verdict(9, 0.9),
+            'Same conclusion as before: LFP is right.${verdict(9, 0.9)}',
             invite('gemini', 'x'),
-            'Same conclusion as before: LFP is right.' + verdict(9, 0.9),
+            'Same conclusion as before: LFP is right.${verdict(9, 0.9)}',
           ],
         );
         final gemini = FakeAgent(
           kind: 'gemini',
           displayName: 'Gemini',
-          script: <String>['LFP is right. ' + verdict(9, 0.9)],
+          script: <String>['LFP is right. ${verdict(9, 0.9)}'],
         );
         final o = councilOf(
           <FakeAgent>[gpt, gemini],

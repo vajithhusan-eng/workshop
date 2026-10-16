@@ -169,7 +169,7 @@ class AdapterRegistry extends ChangeNotifier {
     if (dir == null) return;
 
     final handle = Directory(dir);
-    if (!await handle.exists()) {
+    if (!handle.existsSync()) {
       // Create it so the user has an obvious place to drop selector fixes.
       try {
         await handle.create(recursive: true);
@@ -309,7 +309,7 @@ class AdapterRegistry extends ChangeNotifier {
     final dir = userDir;
     if (dir != null) {
       final f = File('$dir${Platform.pathSeparator}$kind.json');
-      if (await f.exists()) {
+      if (f.existsSync()) {
         try {
           await f.delete();
         } on FileSystemException catch (e) {

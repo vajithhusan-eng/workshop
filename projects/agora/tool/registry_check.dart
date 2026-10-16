@@ -22,7 +22,7 @@ Future<void> main() async {
       final c = AdapterConfig.parse(e.readAsStringSync(), origin: name);
       final errs = c.validate();
       if (errs.isEmpty) {
-        print(
+        stdout.writeln(
           'PASS $name  kind=${c.kind}  v=${c.version}  '
           'composer=${c.composer.candidateCount}  models=${c.modelPicker.labels.length}',
         );
@@ -30,14 +30,14 @@ Future<void> main() async {
       } else {
         fail++;
         for (final x in errs) {
-          print('FAIL $name  $x');
+          stdout.writeln('FAIL $name  $x');
         }
       }
     } on FormatException catch (err) {
       fail++;
-      print('FAIL $name  ${err.message}');
+      stdout.writeln('FAIL $name  ${err.message}');
     }
   }
-  print('\n$pass passed, $fail failed');
+  stdout.writeln('\n$pass passed, $fail failed');
   exit(fail == 0 ? 0 : 1);
 }

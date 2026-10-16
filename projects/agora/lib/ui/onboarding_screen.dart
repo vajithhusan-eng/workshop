@@ -198,7 +198,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               style: TextStyle(height: 1.5),
             ),
             const SizedBox(height: 18),
-            Text('On disk', style: AgoraTheme.caption),
+            const Text('On disk', style: AgoraTheme.caption),
             const SizedBox(height: 6),
             _path('Config', AgoraPaths.root),
             _path('Chrome profile', AgoraPaths.chromeProfile),
@@ -287,7 +287,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               for (final r in rows) _checkRow(context, r),
             ],
             const SizedBox(height: 12),
-            Text(
+            const Text(
               'A signed-out site is the normal first-run state, not an error. '
               'Sign in, then press Check again.',
               style: AgoraTheme.caption,

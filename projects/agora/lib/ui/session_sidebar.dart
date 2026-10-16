@@ -163,9 +163,9 @@ class _SessionSidebarState extends State<SessionSidebar> {
   Widget _list(AgoraController c) {
     final rows = _visible;
     if (rows.isEmpty) {
-      return Center(
+      return const Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24),
           child: Text(
             'No sessions yet.\nOne session is one project.',
             textAlign: TextAlign.center,

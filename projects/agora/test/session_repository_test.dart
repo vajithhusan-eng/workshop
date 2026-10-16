@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
@@ -192,7 +191,7 @@ void main() {
       // Simulate someone rewriting history behind our back.
       await db
           .update(db.messages)
-          .write(MessagesCompanion(rawText: const Value('quietly edited')));
+          .write(const MessagesCompanion(rawText: Value('quietly edited')));
       final tampered = (await repo.messages(id)).single;
       expect(tampered.rawText, 'quietly edited');
       expect(repo.isIntact(tampered), isFalse);

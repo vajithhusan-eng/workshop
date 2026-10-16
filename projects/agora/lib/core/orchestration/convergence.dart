@@ -401,9 +401,9 @@ class ConvergenceScorer {
 Before your answer, judge the council's CURRENT best answer so far, then end
 your reply with exactly this block:
 
-\`\`\`council_score
+```council_score
 {"score": <0-10 integer>, "confidence": <0-1 decimal>, "reason": "<one short sentence>"}
-\`\`\`
+```
 
 - score: how good the current best answer is (10 = ready to ship).
 - confidence: how sure you are (0.0 - 1.0).

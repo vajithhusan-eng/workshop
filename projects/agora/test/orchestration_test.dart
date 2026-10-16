@@ -345,8 +345,8 @@ reconsidering...
       s.record(round: 1, answers: const {'a': 'one two three'}, verdicts: v);
       s.record(round: 2, answers: const {'a': 'one two four'}, verdicts: v);
       expect(s.points.length, 2);
-      expect(r_scoreSeries(s).length, 2);
-      expect(r_scoreSeries(s).first, closeTo(5.0, 1e-9));
+      expect(rScoreSeries(s).length, 2);
+      expect(rScoreSeries(s).first, closeTo(5.0, 1e-9));
     });
 
     test('reset clears history', () {
@@ -523,5 +523,5 @@ reconsidering...
 }
 
 /// Small helper so the graph-series assertion reads clearly.
-List<double> r_scoreSeries(ConvergenceScorer s) =>
+List<double> rScoreSeries(ConvergenceScorer s) =>
     s.points.map((p) => p.meanScore).toList();

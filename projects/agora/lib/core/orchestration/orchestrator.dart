@@ -200,8 +200,8 @@ class CouncilSeat {
     required this.displayName,
     required this.adapter,
     this.roleCard,
-    bool isLeader = false,
-  }) : _isLeader = isLeader;
+    this.isLeader = false,
+  });
 
   final String kind;
   final String displayName;
@@ -210,17 +210,14 @@ class CouncilSeat {
   /// Upgrade A1 (Role Cards): the persona this agent argues from.
   final String? roleCard;
 
-  bool _isLeader;
-
   /// You can change who is in charge mid-session.
-  bool get isLeader => _isLeader;
-  set isLeader(bool value) => _isLeader = value;
+  bool isLeader;
 
   AgentBrief get brief =>
       AgentBrief(kind: kind, displayName: displayName, roleCard: roleCard);
 
   @override
-  String toString() => 'CouncilSeat($kind${_isLeader ? ', leader' : ''})';
+  String toString() => 'CouncilSeat($kind${isLeader ? ', leader' : ''})';
 }
 
 /// The result of a whole council run, for the Decision Record (A5).
@@ -416,7 +413,7 @@ class Orchestrator {
 
       final round = budget.round;
       final roundAnswers = <String, String>{};
-      var roundSpeakers = <String>[];
+      final roundSpeakers = <String>[];
 
       // ---------------- LEADER TURN ----------------
       _setPhase(OrchestratorPhase.leaderTurn, round, _leaderSeat.displayName);

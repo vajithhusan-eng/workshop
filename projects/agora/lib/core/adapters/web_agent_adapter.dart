@@ -337,7 +337,7 @@ class WebAgentAdapter implements AgentAdapter {
     DateTime lastChange = _clock();
     bool sawNewAnswer = false;
     bool stopButtonSeen = false;
-    Verbatim last = Verbatim(rawText: '');
+    Verbatim last = const Verbatim(rawText: '');
     bool timedOut = false;
 
     while (true) {
@@ -472,7 +472,7 @@ class WebAgentAdapter implements AgentAdapter {
 
       final SelectorSpec? option = config.modelPicker.options[label];
       if (option == null) {
-        _log.w('model "$label" is not in ${kind} config options');
+        _log.w('model "$label" is not in $kind config options');
         return false;
       }
       final Map<String, dynamic> r = await _eval('click', <String, dynamic>{
@@ -715,6 +715,6 @@ class WebAgentAdapter implements AgentAdapter {
   void _emit(AgentPhase phase, {String detail = ''}) {
     _status = AgentStatus(phase, detail: detail);
     if (!_statuses.isClosed) _statuses.add(_status);
-    _log.d('${kind} -> ${phase.name}${detail.isEmpty ? '' : ' ($detail)'}');
+    _log.d('$kind -> ${phase.name}${detail.isEmpty ? '' : ' ($detail)'}');
   }
 }

@@ -139,9 +139,9 @@ Future<void> main(List<String> args) async {
   try {
     final outcome = await runner.run(
       seats: <SeatBinding>[
-        SeatBinding(kind: 'chatgpt', displayName: 'ChatGPT', isLeader: true),
-        SeatBinding(kind: 'deepseek', displayName: 'DeepSeek'),
-        SeatBinding(kind: 'gemini', displayName: 'Gemini'),
+        const SeatBinding(kind: 'chatgpt', displayName: 'ChatGPT', isLeader: true),
+        const SeatBinding(kind: 'deepseek', displayName: 'DeepSeek'),
+        const SeatBinding(kind: 'gemini', displayName: 'Gemini'),
       ],
       leaderKind: 'chatgpt',
       prompt:

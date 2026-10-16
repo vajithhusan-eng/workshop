@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:agora/core/cdp/cdp_client.dart';
+import '../cdp/cdp_client.dart';
 
 /// One Chrome tab per AI, created and destroyed over CDP.
 ///

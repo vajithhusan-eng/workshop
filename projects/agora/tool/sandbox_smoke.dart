@@ -19,6 +19,7 @@ import 'package:agora/core/adapters/page_script.dart';
 import 'package:agora/core/adapters/web_agent_adapter.dart';
 import 'package:agora/core/cdp/cdp_client.dart';
 import 'package:agora/core/chrome/chrome_launcher.dart';
+import 'package:agora/core/util/hashing.dart';
 
 int _pass = 0;
 int _fail = 0;
@@ -46,10 +47,12 @@ final Map<String, String> _sessions = <String, String>{};
 Future<String> _sessionFor(CdpClient client, String targetId) async {
   final String? cached = _sessions[targetId];
   if (cached != null) return cached;
-  final attached = await client.send(
-    'Target.attachToTarget',
-    params: <String, dynamic>{'targetId': targetId, 'flatten': true},
-  ) as Map<String, dynamic>;
+  final attached =
+      await client.send(
+            'Target.attachToTarget',
+            params: <String, dynamic>{'targetId': targetId, 'flatten': true},
+          )
+          as Map<String, dynamic>;
   final String sessionId = attached['sessionId'] as String;
   _sessions[targetId] = sessionId;
   return sessionId;
@@ -60,15 +63,17 @@ void _dropSession(String targetId) => _sessions.remove(targetId);
 /// Run JS against the sandbox page.
 Future<Object?> evalOn(CdpClient client, String targetId, String js) async {
   final String sessionId = await _sessionFor(client, targetId);
-  final res = await client.send(
-    'Runtime.evaluate',
-    params: <String, dynamic>{
-      'expression': js,
-      'returnByValue': true,
-      'awaitPromise': true,
-    },
-    sessionId: sessionId,
-  ) as Map<String, dynamic>;
+  final res =
+      await client.send(
+            'Runtime.evaluate',
+            params: <String, dynamic>{
+              'expression': js,
+              'returnByValue': true,
+              'awaitPromise': true,
+            },
+            sessionId: sessionId,
+          )
+          as Map<String, dynamic>;
   final result = res['result'] as Map<String, dynamic>?;
   return result?['value'];
 }
@@ -219,18 +224,13 @@ Future<void> main() async {
     );
     check('nodeCount reported', v.nodeCount > 0, '${v.nodeCount}');
 
-    // Verbatim guarantee: hash must match a fresh hash of the same text.
+    // Verbatim guarantee: the stored stamp must equal a fresh hash of the
+    // captured text, so any later mutation of the vault is provable. The old
+    // form compared a String to a bool, so it passed no matter what.
     check(
-      'hash is stable across recompute',
-      v.contentHash ==
-              (await evalOn(
-                client,
-                adapter.targetId,
-                "document.querySelectorAll('[data-message-author-role=\"assistant\"]')"
-                "[document.querySelectorAll('[data-message-author-role=\"assistant\"]').length-1]"
-                ".querySelector('.body').textContent",
-              )).toString().isEmpty ||
-          v.contentHash != null,
+      'hash matches a fresh hash of the captured text',
+      v.contentHash == contentHash(v.rawText),
+      v.contentHash ?? 'hash was null',
     );
 
     // -- 7. second turn --------------------------------------------------------
@@ -263,8 +263,9 @@ Future<void> main() async {
     await slowAdapter.connect();
     await slowAdapter.send('this one gets stopped midway through');
     await Future<void>.delayed(const Duration(milliseconds: 140));
-    final midStream = await evalOn(client, slowAdapter.targetId,
-        'window.__mock.streaming') as bool?;
+    final midStream =
+        await evalOn(client, slowAdapter.targetId, 'window.__mock.streaming')
+            as bool?;
     check('fixture is genuinely mid-stream', midStream == true);
     await slowAdapter.interrupt();
     final stopped = await slowAdapter.awaitCompletion();
@@ -273,8 +274,11 @@ Future<void> main() async {
       !stopped.isEmpty,
       '${stopped.length} chars',
     );
-    final streamingNow =
-        await evalOn(client, slowAdapter.targetId, 'window.__mock.streaming');
+    final streamingNow = await evalOn(
+      client,
+      slowAdapter.targetId,
+      'window.__mock.streaming',
+    );
     check('streaming stopped after interrupt', streamingNow == false);
     check(
       'cancellation is visible to the user, not silently swallowed',
@@ -316,8 +320,10 @@ Future<void> main() async {
       await probeAdapter.close();
       _dropSession(probeAdapter.targetId);
       await client
-          .send('Target.closeTarget',
-              params: <String, dynamic>{'targetId': probeAdapter.targetId})
+          .send(
+            'Target.closeTarget',
+            params: <String, dynamic>{'targetId': probeAdapter.targetId},
+          )
           .catchError((Object _) => null);
     }
 
@@ -425,6 +431,6 @@ Future<void> main() async {
 void _finish() {
   stdout.writeln('\n${'-' * 56}');
   stdout.writeln('  $_pass passed, $_fail failed');
-  stdout.writeln('${'-' * 56}');
+  stdout.writeln('-' * 56);
   exit(_fail == 0 ? 0 : 1);
 }

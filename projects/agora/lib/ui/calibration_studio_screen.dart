@@ -209,12 +209,9 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
           children: [
             Row(
               children: [
-                Text(
+                const Text(
                   'Live probe',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                 ),
                 const Spacer(),
                 FilledButton.icon(
@@ -234,7 +231,7 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
             ),
             const SizedBox(height: 6),
             const _Note(
-              'Opens ${_HOME_NOTE}in Agora\'s own Chrome and asks the real page '
+              'Opens ${_homeNote}in Agora\'s own Chrome and asks the real page '
               'which selectors still resolve. Nothing is sent and nothing is '
               'stored.',
             ),
@@ -256,7 +253,7 @@ class _CalibrationStudioState extends State<CalibrationStudioScreen> {
     );
   }
 
-  static const _HOME_NOTE = 'in Agora\'s own Chrome. ';
+  static const _homeNote = 'in Agora\'s own Chrome. ';
 
   Widget _validation(AdapterConfig? cfg) {
     if (cfg == null) {

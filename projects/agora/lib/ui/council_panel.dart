@@ -23,7 +23,7 @@ class CouncilPanel extends StatelessWidget {
         border: Border(left: BorderSide(color: AgoraTheme.hairline)),
       ),
       child: session == null
-          ? Center(
+          ? const Center(
               child: Text('No council convened.', style: AgoraTheme.caption),
             )
           : Column(
@@ -165,7 +165,7 @@ class CouncilPanel extends StatelessWidget {
                               : 'Unmute seat',
                         ),
                       ),
-                      PopupMenuItem(
+                      const PopupMenuItem(
                         value: 'card',
                         child: Text('Edit role card'),
                       ),
