@@ -1,4 +1,4 @@
-# RGX — AGENTS.md
+# RGX — project instructions
 
 Load this before touching anything in `projects/rgx/`.
 

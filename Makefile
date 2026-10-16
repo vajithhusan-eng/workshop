@@ -1,4 +1,4 @@
-.PHONY: help backend frontend setup clean push test test-unit test-api test-frontend verify lint dev-status dev-targets dev-down dev-preview dev-review docs-check
+.PHONY: help backend frontend setup clean push test test-unit test-api test-frontend verify lint dev-status dev-targets dev-down dev-preview dev-review docs-check projects-check check
 
 help:
 	@echo "WORKSHOP Commands:"
@@ -11,6 +11,8 @@ help:
 	@echo "  make dev-preview X - Print the browser-preview URL for target X (opens nothing)"
 	@echo "  make dev-review on|off|status - Arm/disarm opening a browser (default OFF)"
 	@echo "  make docs-check      - Fail if a STATE.md is stale or an agent is shadowed"
+	@echo "  make projects-check  - Fail if a project is missing its standard files"
+	@echo "  make check           - projects-check + docs-check (the full gate)"
 	@echo "  make test         - Run all tests (unit + api + frontend)"
 	@echo "  make test-unit    - Forensic math + watch-loop rules (no server needed)"
 	@echo "  make test-api     - API smoke test (needs backend running)"
@@ -19,7 +21,7 @@ help:
 	@echo "  make verify       - test-unit + test-frontend + boot backend + test-api"
 	@echo "  make setup        - Setup all projects"
 	@echo "  make clean        - Clean all build artifacts"
-	@echo "  make push         - Auto-push all changes to GitHub"
+	@echo "  make push         - Push master to GitHub (needs credentials)"
 
 # -- devsup: live build + runtime, per project and per session ---------------
 # Ports are allocated, not demanded: if 8123 is busy devsup takes 8124, so two
@@ -96,6 +98,18 @@ verify: test-unit test-frontend
 
 docs-check:
 	@python3 scripts/verify_docs.py
+
+# Does every project carry the standard document set?
+projects-check:
+	@python3 scripts/verify_projects.py
+
+# The full gate. Both checks run even if the first fails, so one failure does
+# not hide the other.
+check:
+	@python3 scripts/verify_projects.py; p=$$?; \
+	 python3 scripts/verify_docs.py; d=$$?; \
+	 if [ $$p -eq 0 ] && [ $$d -eq 0 ]; then echo "make check: all green"; \
+	 else echo "make check: FAILED (projects-check=$$p docs-check=$$d)"; exit 1; fi
 
 setup:
 	cd backend && ./.venv/bin/python run.py

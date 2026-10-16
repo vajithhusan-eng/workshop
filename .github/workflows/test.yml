@@ -1,10 +1,28 @@
 name: Test
+
 on: [push, pull_request]
+
 jobs:
-  test:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
-      - run: echo 'Add tests here'
+        with:
+          python-version: '3.12'
+
+      # Hard gate: the document set is committed, so a missing README / AGENTS /
+      # STATE / CHANGELOG / docs index is a real failure.
+      - name: Project documentation standard
+        run: python3 scripts/verify_projects.py
+
+      # Advisory only. STATE.md pins name the *local* HEAD and are deliberately
+      # left uncommitted (see PROJECT-STANDARD.md rule 4.1), so on a fresh
+      # checkout they always name an older commit. `--warn` reports the drift
+      # without failing the build.
+      - name: STATE.md freshness (advisory)
+        run: python3 scripts/verify_docs.py --warn
+
+      # The product suites need Flutter, a virtualenv and, for the API smoke
+      # test, a running server. They are run locally via `make verify`; wiring
+      # them here is a separate piece of work.

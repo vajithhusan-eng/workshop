@@ -109,22 +109,36 @@ def shadowed_agents() -> dict[str, Path]:
     return {n: files[n] for n in sorted(inline & files.keys())}
 
 
+# Projects that are in flight under another agent get the same exemption
+# verify_projects.py grants them. An exemption is a TODO with a name on it.
+EXEMPT = {"arise": "in flight by another agent (docs/ only, no claim yet)"}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--warn", action="store_true", help="always exit 0")
     ap.add_argument("--quiet", action="store_true", help="only print failures")
     a = ap.parse_args()
 
-    files = sorted(REPO.glob("projects/*/STATE.md")) + [REPO / "STATE.md"]
+    # Project directories, top-level projects (backend/, frontend/) and the root.
+    files = (
+        sorted(REPO.glob("projects/*/STATE.md"))
+        + sorted(REPO.glob("*/STATE.md"))
+        + [REPO / "STATE.md"]
+    )
     files = [f for f in files if f.exists()]
 
     bad = 0
     if not a.quiet:
         print("STATE FILE FRESHNESS")
     for f in files:
+        rel = f.relative_to(REPO)
+        if f.parent.name in EXEMPT:
+            if not a.quiet:
+                print(f"  ok       {rel}  (exempt: {EXEMPT[f.parent.name]})")
+            continue
         want = head(f.parent) or head()
         status, detail = check_state_file(f, want)
-        rel = f.relative_to(REPO)
         if status == "ok":
             if not a.quiet:
                 print(f"  ok       {rel}  ({detail})")

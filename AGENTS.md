@@ -8,19 +8,22 @@ before touching anything.
 
 | Path | What it is | State |
 |---|---|---|
-| `projects/agora/` | Flutter desktop (AppImage) multi-AI council orchestrator, drives real Chrome over CDP | **active** — 135 tests green, engine + storage built, UI built but **not mounted** |
-| `projects/rgx/` | Python quant research harness — factors → ranker → regime → portfolio → validation | 2.8k LOC, **no tests**, synthetic-data self-validation |
-| `projects/cleantube/` | Android-first Flutter ad-blocker (WebView + native YouTube client + DNS sinkhole) | **plan only — zero code** |
-| `backend/` | Python + FastAPI finance/forensics service | older project |
-| `frontend/` | Flutter app | older project |
-| `scripts/` | `verify_api.sh` only | |
+| `projects/agora/` | Flutter desktop (AppImage) multi-AI council orchestrator, drives real Chrome over CDP | **active** — 290 tests green, engine + storage + UI built |
+| `projects/rgx/` | Python quant research harness — factors → ranker → regime → portfolio → validation | 2.8k LOC, 47 fast + 6 slow tests, synthetic-data self-validation |
+| `projects/cleantube/` | Android-first Flutter ad-blocker (browser + native YouTube client + DNS sinkhole) | **plan only — zero code** |
+| `projects/arise/` | Research + roadmap, in flight by another agent | **exempt** from `make check` while it lands |
+| `backend/` | Python + FastAPI finance/forensics service (OMNIVEST, `:8123`) | active |
+| `frontend/` | Flutter web terminal for the same service (`:8081`) | active |
+| `scripts/` | `devsup.py`, `new_project.py`, `verify_docs.py`, `verify_projects.py`, `verify_api.sh` | |
+| `templates/project/` | the canonical project skeleton | |
+| `PROJECT-STANDARD.md` | the document standard every project follows | |
 | `archive/`, `tools/` | empty | |
 | `skills` | symlink → `~/.config/opencode/skills-active` | |
 
 `package.json` declares workspaces `["backend", "frontend", "projects/*", "tools/*"]`,
-but `backend/` and `frontend/` have no `package.json`, so those globs resolve to
-nothing. `projects/story-app` is declared but **does not exist** — stale entry,
-ignore it.
+but none of those directories has a `package.json`, so an npm install here does
+nothing. It is a manifest of intent only; the real entry points are the `Makefile`
+and each project's own tooling.
 
 ## Per-project instructions
 
@@ -34,8 +37,15 @@ this file and wins where they conflict.
 - `projects/rgx/` — **quant research harness, not a trading system.** It validates
   itself against synthetic data with a planted edge; its central invariant is that
   it **can return nothing**. Read its `AGENTS.md` first — it carries the locked
-  methodological decisions and their citations. `tests/` contains only `__init__.py`,
-  so **there is no suite to run and no green to claim** until one exists.
+  methodological decisions and their citations. `pytest tests/` runs 47 invariants
+  but **skips the null control**; only `RGX_SLOW=1 pytest tests/` exercises the
+  central invariant. Quoting the fast number as proof the pipeline can return
+  nothing is quoting a test that never ran.
+- `backend/AGENTS.md` · `frontend/AGENTS.md` — the OMNIVEST pair: a Python/FastAPI
+  service and its Flutter web client. They obey the same document standard but no
+  Agora convention; do not mix the two.
+- `projects/arise/AGENTS.md` — in flight by another agent. Do not edit, commit or
+  clean it; it is exempt from `make check` until it settles.
 
 ## New projects appear without orientation docs
 
@@ -49,9 +59,10 @@ command has actually been run.
 
 - **`projects/agora` is the active project.** Recent commits are all Agora work.
 - **Plan docs are the contract.** `agora/PLAN.md` is `Status: PLAN APPROVED`;
-  `agora/PLAN-GROUPCHAT.md` is `Status: PROPOSED` and untracked, so it is *not*
-  ratified. CleanTube's `PLAN.md` is the sole design doc. Never invent a design
-  that contradicts an APPROVED plan — record the divergence instead.
+  `agora/PLAN-GROUPCHAT.md` is `Status: PROPOSED` and superseded — its D1 was
+  ratified as `PLAN.md` §18 Amendment R1, so it is *not* authority. CleanTube's
+  `PLAN.md` is the sole design doc. Never invent a design that contradicts an
+  APPROVED plan — record the divergence instead.
 - **Assume another agent is working here.** This repo has parallel agents as a
   normal condition, not an incident. Before editing a file you did not create,
   claim it — `python3 scripts/devsup.py claim <path> --note "why"` — and check
@@ -60,9 +71,14 @@ command has actually been run.
   mid-write: re-read, do not assume your earlier read still holds.
 - **Check `git status` before assuming a file is untouched.** There is usually
   uncommitted work in flight, and it may be someone else's.
-- **A `STATE.md` pinned to an old commit is a red line.** Run `make docs-check`. It
-  fails when a state file is staler than HEAD or an agent is defined in two places
-  at once. Docs go stale here within minutes, not weeks.
+- **A `STATE.md` pinned to an old commit is a red line.** Run `make check`:
+  `projects-check` enforces the document set, `docs-check` the pin freshness and
+  duplicate-agent rule. Docs go stale here within minutes, not weeks.
+- **Every project carries the same document set** — `README.md`, `AGENTS.md`,
+  `STATE.md`, `CHANGELOG.md`, `docs/README.md` — because
+  [`PROJECT-STANDARD.md`](PROJECT-STANDARD.md) says so and `make projects-check`
+  enforces it. `STATE.md` is updated **last** and left **uncommitted**: the pin
+  names HEAD, so committing it re-stales it. That is rule 4.1, not a bug.
 - **`projects/agora/ARCHITECTURE-legacy.md` is archived.** It documents the deleted
   Python backend. Never build against it or resurrect its patterns.
 - **`backend/` and `frontend/` are a different stack** — Python/FastAPI and Flutter,
@@ -72,10 +88,16 @@ command has actually been run.
 
 ## Verification commands
 
-- `backend/` — run the Python suite in `app/tests/`.
-- `projects/agora/` — run the Dart/Flutter suite in `test/`. Real-Chrome checks live
-  in `tool/` and are **manual, opt-in**; do not wire them into CI.
-- `projects/cleantube/` — nothing to run; no code exists.
+- `backend/` — `make test-unit` (143 checks, no server needed) or `make test-api`
+  (168 checks, needs the server up). `pytest app/tests` collects only the unit
+  suite: `test_api.py` is a live-server smoke test and is deliberately ignored
+  there.
+- `frontend/` — `cd frontend && flutter test` (165 tests), or `make test-frontend`.
+- `projects/agora/` — run the Dart/Flutter suite in `test/` (290 tests). Real-Chrome
+  checks live in `tool/` and are **manual, opt-in**; do not wire them into CI.
+- `projects/rgx/` — `.venv/bin/python -m pytest tests/` (47 fast); add `RGX_SLOW=1`
+  for the 6 null-control tests that actually exercise the invariant.
+- `projects/cleantube/`, `projects/arise/` — nothing to run.
 
 Run the real command and read the output before reporting done.
 

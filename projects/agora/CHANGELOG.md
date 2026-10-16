@@ -1,0 +1,65 @@
+# Changelog
+
+All changes to Agora, newest first. Entries quote the commit that carried them.
+
+## 2026-10-17 — documentation standard, and Amendment R1
+
+- `0707233` feat(agora): Amendment R1 channels, silent Chrome, conversation UI and tests
+  Protocol parser for all five actions, the sender table, `SpeakerSelector`, drift
+  v3 `channels` + `messages.channel_id`, per-thread journaling, silent Chrome mode
+  with reveal, slash composer, conversation chips with avatar stacks / presence
+  dots / count-cursor unread, convergence card and graph.
+- `2cc557d` fix(make,docs): make `make push` report failures; correct the `tool/` scratch note
+- `3e3aeae` chore(tooling): track the dev supervisor, docs-check and C++ lint scripts
+- `d504935` docs: add monorepo and per-project orientation docs
+- Added `docs/README.md` and this changelog. `STATE.md` re-verified:
+  `flutter test` **290 passed / 1 skipped**, `dart analyze lib/ test/` **62 info,
+  0 warnings, 0 errors**.
+
+## 2026-10-06 — Amendment R1 ratified
+
+- `76233ad` docs(agora): ratify amendment R1 — channels, silent Chrome, opencode × WhatsApp UI
+  Closes the dispatch contradiction. Round-robin was adopted, but as `broadcast`
+  under the approved plan rather than as `PLAN-GROUPCHAT.md` D1. Supersedes
+  §2.4, §8, §11 and §17 where they conflict.
+- `ce31de1` feat(agora): live real-site check tool, page text dumper, vision note
+
+## 2026-10-03 — the build-out (43 commits)
+
+The day Agora went from scaffold to a working app. Highlights:
+
+- `ceb4a49` **UI mounted** — three-pane council room, `@`-routing composer,
+  calibration studio, decision record, settings
+- `a233db1` "Start the council" runs for real, with live progress, a stop button
+  and a blocked-reason card; `96e7fdb` real snapshot (Ctrl+S) and interrupt (Esc)
+- `3a1dfe8` `TabPool` + `CouncilRunner`; `d1014cd` orchestrator state machine;
+  `b2f67e9` the 57-test orchestration suite, previously untracked
+- `32fe89b` `SessionRepository`; `91e6dc7` schema v2 + hot-query indexes;
+  `e28b4a0`, `f3527a6`, `96846af` index-DDL fixes
+- `33a9d9e` prompt compiler (B1 delta packets, D1 brief) + safety firewall
+- `49bf0ae`, `b825f93`, `d86045c` `SelectorProber` — ask a real page what each
+  selector actually resolves
+- `e4633fc` Time Machine — journal dispatch/capture and replay against the Sandbox Lab
+- `7bd2f67` 10 replay tests; `b2f67e9` the 57-test orchestration suite
+- `e6ace6c` onboarding wizard; `fb5b873` `LoginChecker`
+- `20359ab`, `d7a7426` defeat background-tab throttling
+- `08fa086` AppImage packaging — desktop entry, metainfo, icon, AppRun, build script
+- `d5921b1`, `1baa1de`, `62db429` documentation brought back in line with the code
+
+## 2026-09-30 — the adapter framework
+
+- `bd7c5fb` adapter framework: data-driven config model + JS page kernel
+- `e4a2d9c` real adapter configs for ChatGPT / Gemini / DeepSeek (3/3 validate)
+- `84a551c` adapter registry — bundled + user JSON overlay, hot reload, graceful skip
+- `7a1a346` adapter config contract, drift codegen, agent + web adapters
+- `23bdc2c` Sandbox Lab — mock AI site fixture + full adapter e2e smoke test
+- `639cde5` sandbox suite green: 42/42 e2e against real Chrome
+- `a6ab401` CRITICAL: capture the answer baseline *before* the send click
+- `bba6047` resolve all 20 analyzer errors
+
+## 2026-09-28 — scaffolding
+
+- `34c0220` P0 baseline: clean Flutter Linux desktop scaffold
+- `a8857fe` P1 CDP engine, proven against real Chrome 154
+- `cf9bd0b` Council Protocol parser + 24 passing tests
+- `335e91b` restructure `story-app` into Agora

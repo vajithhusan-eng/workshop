@@ -1,91 +1,100 @@
-# 🏭 WORKSHOP — Main Project Workspace
+# 🏭 WORKSHOP
 
-[![GitHub](https://img.shields.io/badge/GitHub-vajithhusan-eng-blue?logo=github)](https://github.com/vajithhusan-eng)
-[![OpenCode](https://img.shields.io/badge/OpenCode-Active-brightgreen?logo=opencode)](http://127.0.0.1:49374)
+[![GitHub](https://img.shields.io/badge/GitHub-vajithhusan--eng-blue?logo=github)](https://github.com/vajithhusan-eng/workshop)
+[![OpenCode](https://img.shields.io/badge/built%20with-OpenCode-brightgreen)](https://opencode.ai)
 
-All projects are stored as subdirectories under this folder. Every project is fully configured with OpenCode, Git, MCP servers, skills, and agents.
+A monorepo holding several unrelated projects side by side. Each one is
+self-contained, has its own stack, its own tests, and its own complete document
+set — **the same document set for every project**, current and future. See
+[`PROJECT-STANDARD.md`](PROJECT-STANDARD.md).
 
-## 📁 Project Structure
+## 📁 Projects
+
+| Project | What it is | Stack | Status |
+|---|---|---|---|
+| [`projects/agora/`](projects/agora/) | Multi-AI council orchestrator driving real Chrome over CDP | Flutter desktop (AppImage) | **active** |
+| [`projects/rgx/`](projects/rgx/) | Quant research harness — factors → ranker → regime → portfolio → validation | Python | active, no edge claimed |
+| [`projects/cleantube/`](projects/cleantube/) | Android-first ad blocker (browser + native YouTube client + DNS sinkhole) | Flutter Android | **plan only, zero code** |
+| [`projects/arise/`](projects/arise/) | Research and roadmap, in flight | — | in flight by another agent |
+| [`backend/`](backend/) | OMNIVEST finance/forensics API (`:8123`) | Python + FastAPI | active |
+| [`frontend/`](frontend/) | OMNIVEST terminal UI (`:8081`) | Flutter web | active |
+
+Every project carries `README.md`, `AGENTS.md`, `STATE.md`, `CHANGELOG.md` and
+`docs/README.md`. Start at the project's `README.md`; an agent should start at
+`AGENTS.md`.
+
+## 🚀 Quick start
+
+```bash
+make help            # every command, with one line each
+
+make backend         # start the OMNIVEST API on :8123
+make frontend        # start the OMNIVEST web UI on :8081
+make dev-status      # what is running: session, port, pid, health
+
+make test            # unit + api + frontend suites
+make verify          # the pre-commit gate: units, lint, then a real HTTP call
+make check           # documentation standard + STATE freshness
+```
+
+## ✅ Documentation standard
+
+`PROJECT-STANDARD.md` is the contract: every project is arranged the same way,
+with one concern per document, so a person or an agent arriving anywhere finds the
+same doors in the same places.
+
+```bash
+make projects-check  # every project has the required files, headers well-formed
+make docs-check      # every STATE.md pin matches HEAD; no agent defined twice
+make check           # both
+```
+
+New project:
+
+```bash
+python3 scripts/new_project.py <slug> --name "<Name>" --one-line "<description>" --kind python
+```
+
+It stamps `templates/project/` into a new directory with the standard files, the
+required headers, and a `STATE.md` already pinned to HEAD.
+
+## 🗂️ Layout
 
 ```
 WORKSHOP/
-├── 📁 projects/          → All project code
-├── 📁 backend/           → Finance backend (Python/FastAPI)
-├── 📁 frontend/          → Flutter web frontend
-├── 📁 tools/             → Tool scripts and utilities
-├── 📁 archive/           → Completed/archived projects
-├── 📄 opencode.jsonc     → Project-level OpenCode config
-├── 📄 Makefile           → Quick commands (make backend, make frontend)
-├── 📄 package.json       → Workspace package with subdirectory workspaces
-├── 📄 .github/           → CI/CD pipelines
-├── 📄 .opencode/         → Agents, MCPs, commands, plugins
-│   ├── agents/           → architect, coder, reviewer, tester
-│   ├── mcp.jsonc         → All 7 MCP servers configured
-│   ├── commands/         → setup command
-│   └── QUOTA_TRACKER.md  → Usage tracking
-├── 🔗 skills/            → Symlink to 70+ global skills
-└── 📄 .gitignore         → Excludes all build artifacts
+├── projects/            → agora, arise, cleantube, rgx
+├── backend/             → OMNIVEST API (Python/FastAPI)
+├── frontend/            → OMNIVEST web UI (Flutter)
+├── scripts/             → devsup.py, new_project.py, verify_docs.py,
+│                          verify_projects.py, verify_api.sh
+├── templates/project/   → the canonical project skeleton
+├── PROJECT-STANDARD.md  → the standard every project follows
+├── AGENTS.md            → rules for agents working in this repo
+├── Makefile             → every command
+├── opencode.jsonc       → repo-level OpenCode config (.opencode/ wins over it)
+├── .opencode/           → agents (architect, coder, reviewer, tester),
+│                          commands (setup, dev, auto-fix), MCP servers
+├── .devsup/             → live build/runtime state (gitignored)
+├── archive/, tools/     → empty
+└── skills → ~/.config/opencode/skills-active
 ```
 
-## 🚀 Quick Start
+## 🔗 Tooling
 
-```bash
-# Start OpenCode in WORKSHOP
-cd /home/vajith-husan/Documents/WORKSHOP
-opencode .
+- **MCP servers** are configured in `.opencode/mcp.jsonc` (filesystem, context7,
+  fetch, playwright, memory, sequential-thinking, time).
+- **Protections** — `~/.local/bin/opencode-mcp-guard.sh` reaps orphaned MCP
+  processes on a timer, if installed. Auto-compaction keeps **15000** tokens and
+  buffers 20000.
+- **Commits** follow `<type>(<scope>): <description>` — `feat`, `fix`, `docs`,
+  `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`.
 
-# Start the finance backend
-make backend
+## 🐛 When something looks wrong
 
-# Start the Flutter web frontend
-make frontend
-
-# Setup everything
-make setup
-```
-
-## 🔗 MCP Servers (All 7 Connected)
-
-| Server | Purpose |
-|--------|---------|
-| **filesystem** | Access to WORKSHOP files |
-| **context7** | Live library documentation |
-| **fetch** | Web search and content |
-| **playwright** | Browser automation |
-| **memory** | Cross-session knowledge |
-| **sequential-thinking** | Reasoning and planning |
-| **time** | Date/time queries |
-
-## 🛡️ Protections
-
-- **opencode-mcp-guard.sh** — Reaps orphaned MCP processes every 5 min
-- **Watchdog disabled** — No restart storms
-- **Auto-compaction** — 12k tokens keep, 20k buffer
-- **Git version control** — All configs tracked
-- **Quota tracker** — Live usage monitoring
-
-## 🧠 Agents
-
-| Agent | Purpose |
-|-------|---------|
-| **architect** | System design and planning |
-| **coder** | Code implementation |
-| **reviewer** | Code review and quality |
-| **tester** | Testing and QA |
-
-## 📝 Commit Convention
-
-```
-<type>(<scope>): <description>
-```
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`
-
-## 🐛 Issues
-
-If OpenCode can't find your project, check:
-1. The project is under `/home/vajith-husan/Documents/WORKSHOP/`
-2. Ports 8123/8081 are listening (backend/frontend running)
-3. Run `bash ~/.local/bin/opencode-mcp-guard.sh` to clean zombie processes
+1. The project is under `/home/vajith-husan/Documents/WORKSHOP/`.
+2. Ports 8123 (backend) and 8081 (frontend) are listening — `make dev-status`.
+3. `python3 scripts/devsup.py targets` lists what devsup can start.
+4. Stale docs? `make check` names the exact file that needs re-verifying.
 
 ## 📧 Contact
 

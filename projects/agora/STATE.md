@@ -1,14 +1,22 @@
 # Agora — STATE
 
 **Derived file.** Regenerate by verifying, not by trusting commit messages or this file.
-**Verified:** 2026-10-10 · `HEAD 76233ad` · Flutter 3.47.0 / Dart 3.13.0 ·
+**Verified:** 2026-10-17 · `HEAD 2cc557d` · Flutter 3.47.0 / Dart 3.13.0 ·
 `flutter test` 290 passed / 1 skipped, `dart analyze lib/ test/` 62 info 0 warn 0 err,
-`dart analyze tool/` 135 info **4 warnings 20 errors — every one in another agent's untracked scratch**, `make docs-check` exit 0.
+`dart analyze tool/` 135 info **4 warnings 20 errors — every one in the 22 ignored
+probe/run scratch files kept on disk**; the *tracked* tool sources are 22 info, 0 warn,
+0 err. `make docs-check` exit 0.
 
-The tree is dirty on purpose: `VISION.md` was deleted after `ce31de1` and **restored**
-byte-for-byte — it holds the user's verbatim vision and the standing rule is
-add-only-never-delete. Untracked: `tool/dbg2.dart`, `tool/cpp_lint.sh`, and
-`PLAN-GROUPCHAT.md` (superseded by R1 §18, kept as the record of what was proposed).
+**Git hygiene (2026-10-17).** The working tree is clean. Everything formerly untracked
+and load-bearing is now committed: `tool/cpp_lint.sh`, `PLAN-GROUPCHAT.md`,
+`scripts/devsup.py`, `scripts/verify_docs.py`, the monorepo `AGENTS.md`, and the R1
+sources + tests. `VISION.md` was deleted after `ce31de1` and **restored** byte-for-byte —
+it holds the user's verbatim vision and the standing rule is add-only-never-delete. The
+remaining `tool/` scratch (`run_*.dart`, `check_load*.dart`, `debug*.dart`, `dbg2.dart`,
+`probe_fix.dart`) is **ignored, not deleted**, so a plain `git clean -fd` can no longer
+destroy it. This STATE.md edit is deliberately **left uncommitted**: `verify_docs.py`
+compares the working-tree pin against HEAD, so committing the pin would immediately
+re-stale it. Do not "fix" that by committing this file.
 
 ## How to verify this file
 
@@ -39,7 +47,7 @@ dart run tool/focus_probe.dart     # anti-throttling + TabPool against real Chro
 | `dart run tool/focus_probe.dart` | **ALL OK** — focus emulation, `Page.bringToFront`, and all six `TabPool` paths |
 | AppImage | `build/agora-0.1.0-x86_64.AppImage`, 11.7 MB. Launched from its FUSE mount; no exceptions; created `agora.sqlite` at `user_version 2` with all 9 tables, FTS5, and all 4 hot-query indexes |
 | The 1 skip | `orchestrator_test.dart:494` — `stallForever is checked before mutation; kept as documentation`. Intentional, not hidden. |
-| `dart analyze tool/` | **0 errors · 0 warnings** (29 info), **exit 0**. At this HEAD it was **5 warnings / exit 2**: 2 in `tool/live_check.dart` + 1 in `tool/page_text.dart` (all from `ce31de1`) and 2 in `tool/dbg2.dart`. All 5 removed 2026-10-06. |
+| `dart analyze tool/` | **0 errors · 0 warnings** across the **tracked** sources (22 info, exit 0). The whole directory reports **4 warnings / 20 errors**, all of them in the ignored probe scratch (`check_load*`, `debug3`/`debug4`, `debug_connect*`, `probe_fix`, `dbg2`) — dead helpers written against an older API, kept on disk, never shipped. `dart analyze $(git ls-files 'tool/*.dart')` is the honest check. |
 | `tool/cpp_lint.sh` | **Blocked, exits 2.** `libgtk-3-dev` and `libglib2.0-dev` were removed from the system after 2026-10-03, so `pkg-config gtk+-3.0` fails. The script refuses to report success — that is correct behaviour. `flutter build linux` is blocked by the same cause. Restoring needs sudo, which is impossible inside an OpenCode session (`NoNewPrivs=1`). Last good reading: 5 files, 0 errors, 0 warnings. |
 
 ## The one thing that matters
