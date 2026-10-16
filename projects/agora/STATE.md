@@ -1,11 +1,13 @@
 # Agora — STATE
 
 **Derived file.** Regenerate by verifying, not by trusting commit messages or this file.
-**Verified:** 2026-10-17 · `HEAD 2f458d9` · Flutter 3.47.0 / Dart 3.13.0 ·
+**Verified:** 2026-10-17 · `HEAD 14b81aa` · Flutter 3.47.0 / Dart 3.13.0 ·
 `flutter test` 290 passed / 1 skipped; `dart analyze` and `flutter analyze` both
 **`No issues found!` — 0 errors, 0 warnings, 0 info, exit 0.** Before this sweep a bare
 `dart analyze` on the package reported **20 errors + 197 info**; every error, and all 22
-of the tool/ infos, were in the ignored probe scratch. `make docs-check` exit 0.
+of the tool/ infos, were in the ignored probe scratch. `tool/cpp_lint.sh` **PASS**
+(5 files, 0 errors, 0 warnings) and `flutter build linux --release` **PASS** →
+`build/agora-0.1.0-x86_64.AppImage`, 12 MB. `make docs-check` exit 0.
 
 **Git hygiene (2026-10-17).** The working tree is clean. Everything formerly untracked
 and load-bearing is now committed: `tool/cpp_lint.sh`, `PLAN-GROUPCHAT.md`,
@@ -35,8 +37,7 @@ so its Verbatim hash check was vacuously true and asserted nothing; it now asser
 cd projects/agora
 flutter test          # 290 passed, 1 skipped, 0 failed
 dart analyze          # No issues found! — 0 errors, 0 warnings, 0 info
-tool/cpp_lint.sh      # BLOCKED on this machine: libgtk-3-dev / libglib2.0-dev absent
-                      #   and sudo is impossible (NoNewPrivs=1). Last good: 5 files, 0/0.
+tool/cpp_lint.sh      # 5 tracked C++ files, 0 errors, 0 warnings (GTK 3.24.52)
 git log --oneline -1
 ```
 
@@ -57,10 +58,11 @@ dart run tool/focus_probe.dart     # anti-throttling + TabPool against real Chro
 | Test inventory | 17 files — inc. `conversation_list_test.dart`, `conversation_state_test.dart`, `convergence_graph_test.dart`, `slash_commands_test.dart`, `chrome_mode_test.dart` |
 | `dart run tool/sandbox_smoke.dart` | **42 passed · 0 failed** against real Chrome 154 |
 | `dart run tool/focus_probe.dart` | **ALL OK** — focus emulation, `Page.bringToFront`, and all six `TabPool` paths |
-| AppImage | `build/agora-0.1.0-x86_64.AppImage`, 11.7 MB. Launched from its FUSE mount; no exceptions; created `agora.sqlite` at `user_version 2` with all 9 tables, FTS5, and all 4 hot-query indexes |
+| AppImage | `build/agora-0.1.0-x86_64.AppImage`, **12 MB**, rebuilt 2026-10-17 through the whole pipeline: `flutter build linux --release` → `appimagetool`, exit 0. Packaging needs `APPIMAGE_EXTRACT_AND_RUN=1` here because FUSE mounts are denied (`fusermount: mount failed: Operation not permitted`); `tool/build_appimage.sh` now retries that way automatically. The 2026-10-10 launch reading (from a FUSE mount: no exceptions, `agora.sqlite` at `user_version 2` with all 9 tables, FTS5 and all 4 hot-query indexes) has not been repeatable since FUSE was denied, so treat launch as last-verified at that date. |
 | The 1 skip | `orchestrator_test.dart:494` — `stallForever is checked before mutation; kept as documentation`. Intentional, not hidden. |
 | Ignored `tool/` scratch | `run_*.dart`, `check_load*.dart`, `debug*.dart`, `dbg2.dart`, `probe_fix.dart` — dead helpers against an older API, `.gitignore`d, kept on disk by decision (another agent works here concurrently and has destroyed untracked work before). Excluded from analysis in `analysis_options.yaml`; check the tracked sources with `dart analyze $(git ls-files 'tool/*.dart')`. |
-| `tool/cpp_lint.sh` | **Blocked, exits 2.** `libgtk-3-dev` and `libglib2.0-dev` were removed from the system after 2026-10-03, so `pkg-config gtk+-3.0` fails. The script refuses to report success — that is correct behaviour. `flutter build linux` is blocked by the same cause. Restoring needs sudo, which is impossible inside an OpenCode session (`NoNewPrivs=1`). Last good reading: 5 files, 0 errors, 0 warnings. |
+| `tool/cpp_lint.sh` | **PASS — 5 files, 0 errors, 0 warnings, exit 0** (GTK 3.24.52, glib 2.88.0, `clang++ -fsyntax-only -Wall -Wextra`). The 2026-10-06 reading — "blocked, exits 2: `libgtk-3-dev`/`libglib2.0-dev` were removed" — **no longer reproduces**; the dev packages are present again and `pkg-config gtk+-3.0` resolves. |
+| `flutter build linux --release` | **PASS**, exit 0, `build/linux/x64/release/bundle/agora` — now with an **unmodified `PATH`**. It used to fail with a `cmake` traceback, which was *not* a missing-package problem: `pip install --user` shims in `~/.local/bin` (installed under Python 3.12, which the system has since replaced with 3.14) resolved on `PATH` but died with `ModuleNotFoundError`, shadowing the working `/usr/bin/cmake` 4.2.3. Measured 2026-10-17: **45 of the 46** Python shims were dead (`vba_extract.py` survives — it is pure stdlib) and were **quarantined to `~/.local/bin.broken/`** (reversible: `mv ~/.local/bin.broken/* ~/.local/bin/`). `ninja` was never affected — it is a real ELF binary. `tool/build_appimage.sh` additionally detects a shim that resolves but does not run and falls back to `/usr/bin`, in case any come back. |
 
 ## The one thing that matters
 
