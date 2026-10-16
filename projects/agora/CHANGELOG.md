@@ -2,6 +2,31 @@
 
 All changes to Agora, newest first. Entries quote the commit that carried them.
 
+## 2026-10-17 — 45 dead `~/.local/bin` shims quarantined (machine fix)
+
+This is what actually unblocked `flutter build linux`; the repo-side guard is only a
+backstop. Nothing in the repository changed — the shims live in the user's home.
+
+- Measured, not assumed: of the **46** files in `~/.local/bin` with a
+  `#!/usr/bin/python3` shebang, **45 were dead** (`ModuleNotFoundError` /
+  `No module named`). The survivor, `vba_extract.py`, is pure stdlib and runs on 3.14.
+- **`ninja` was not one of them.** It is a real ELF binary shipped by the `ninja`
+  package and always ran; an earlier note claiming it was "shadowed the same way" as
+  `cmake` was wrong and has been corrected.
+- Moved the 45 dead shims to `~/.local/bin.broken/`. Reversible:
+  `mv ~/.local/bin.broken/* ~/.local/bin/`.
+- Effect: `command -v cmake` → `/usr/bin/cmake` (4.2.3), and a bare
+  `flutter build linux --release` succeeds with an **unmodified `PATH`**.
+- Side effect: `pip`, `pip3`, `black`, `pytest`, `uvicorn`, `tqdm`, `httpx`,
+  `websockets`, `watchfiles`, `coverage`, `alembic`, `django-admin` and the rest are now
+  **absent** from `PATH` rather than present-and-broken. None worked before, so nothing
+  regressed. Use a project venv (`backend/.venv`, `projects/rgx/.venv`), or
+  `python3 -m ensurepip --upgrade` to get pip back.
+- No repository tooling referenced any of them (`grep` over the Makefiles and CI found
+  nothing). Re-verified after the move: `make check` exit 0 · backend `143/143` · agora
+  `flutter analyze` clean, 290 tests, `cpp_lint.sh` PASS · rgx 47 passed / 6 skipped ·
+  frontend 165 passed.
+
 ## 2026-10-17 — Linux build and AppImage packaging unblocked
 
 Both were recorded as blocked since 2026-10-06. Neither blocker was real.
@@ -13,7 +38,8 @@ Both were recorded as blocked since 2026-10-06. Neither blocker was real.
   missing package: a stale `pip install --user` shim at `~/.local/bin/cmake`,
   installed under Python 3.12 (the system has since moved to 3.14), still resolves
   on `PATH` but exits with `ModuleNotFoundError`, shadowing a working
-  `/usr/bin/cmake 4.2.3`. `ninja` is shadowed the same way.
+  `/usr/bin/cmake 4.2.3`. (`ninja` was suspected too, but it is a real ELF binary in
+  `~/.local/bin` and always ran; `/usr/bin/ninja` is fine as well.)
   `tool/build_appimage.sh` now detects a tool that resolves but does not run and
   falls back to `/usr/bin`, printing a note instead of dying.
 - AppImage packaging runs `appimagetool`, itself an AppImage, which needs FUSE;
