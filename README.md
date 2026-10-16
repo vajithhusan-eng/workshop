@@ -157,4 +157,8 @@ PROJECT-STANDARD.md   the contract every project follows
 
 ---
 
+## License
+
+MIT — see [`LICENSE`](LICENSE). Use it, fork it, ship it.
+
 **Vajith Husan** · [GitHub](https://github.com/vajithhusan-eng) · vajithhusan2510@gmail.com
