@@ -1,5 +1,11 @@
 # OMNIVEST backend
 
+[![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Unit checks](https://img.shields.io/badge/unit-143%20checks-brightgreen)](app/tests/)
+[![API checks](https://img.shields.io/badge/API-168%20checks-brightgreen)](app/tests/test_api.py)
+[![Safe by default](https://img.shields.io/badge/advice-blocked%20by%20default-success)](app/guardrails.py)
+
 The API behind the OMNIVEST terminal: **free knowledge, self-analytics and a
 journal you can correct**. Python + FastAPI, no database server — the journal is
 a JSON file on disk.

@@ -1,13 +1,14 @@
 # Agora — STATE
 
 **Derived file.** Regenerate by verifying, not by trusting commit messages or this file.
-**Verified:** 2026-10-17 · `HEAD 14b81aa` · Flutter 3.47.0 / Dart 3.13.0 ·
+**Verified:** 2026-10-17 · `HEAD 8e823e5` · Flutter 3.47.0 / Dart 3.13.0 ·
 `flutter test` 290 passed / 1 skipped; `dart analyze` and `flutter analyze` both
 **`No issues found!` — 0 errors, 0 warnings, 0 info, exit 0.** Before this sweep a bare
 `dart analyze` on the package reported **20 errors + 197 info**; every error, and all 22
 of the tool/ infos, were in the ignored probe scratch. `tool/cpp_lint.sh` **PASS**
 (5 files, 0 errors, 0 warnings) and `flutter build linux --release` **PASS** →
-`build/agora-0.1.0-x86_64.AppImage`, 12 MB. `make docs-check` exit 0.
+`build/agora-0.1.0-x86_64.AppImage`, 12 MB, plus a portable
+`build/agora-0.1.0-x86_64.tar.gz` for FUSE-less hosts. `make docs-check` exit 0.
 
 **Git hygiene (2026-10-17).** The working tree is clean. Everything formerly untracked
 and load-bearing is now committed: `tool/cpp_lint.sh`, `PLAN-GROUPCHAT.md`,
@@ -46,7 +47,7 @@ Real-Chrome checks in `tool/` are **manual and opt-in** (`PLAN.md` §12). Never 
 ```bash
 dart run tool/sandbox_smoke.dart   # 42 checks, mock AI site, real Chrome
 dart run tool/focus_probe.dart     # anti-throttling + TabPool against real Chrome
-./tool/build_appimage.sh           # builds the .AppImage
+./tool/build_appimage.sh           # builds the .AppImage + a portable .tar.gz
 ```
 
 ## Verified green

@@ -1982,7 +1982,7 @@ AppImage/
 
 ```bash
 # Build the AppImage
-cd /home/vajith-husan/Documents/WORKSHOP/projects/story-app
+cd projects/story-app
 make appimage
 
 # Build Linux tar.gz

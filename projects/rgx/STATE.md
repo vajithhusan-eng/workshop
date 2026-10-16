@@ -1,7 +1,7 @@
 # RGX — STATE
 
 **Derived file.** Regenerate by verifying, not by trusting this file or any commit message.
-**Verified:** 2026-10-17 · `HEAD 14b81aa` · fast suite **47 passed, 6 skipped** (4.95s); slow null control **53 passed** (`RGX_SLOW=1`, 66.7s).
+**Verified:** 2026-10-17 · `HEAD 8e823e5` · fast suite **47 passed, 6 skipped** (4.95s); slow null control **53 passed** (`RGX_SLOW=1`, 66.7s).
 
 ## How to verify this file
 
@@ -26,7 +26,7 @@ grep -c '^def test_' tests/test_null_control.py      # 4 (parametrized → 6 tes
 | `tests/test_null_control.py` | **6 tests** (4 `def test_`, one parametrized ×3 seeds) |
 | Python version | **3.14.4** (`.venv`, rebuilt 2026-10-06 after system upgrade removed 3.12) |
 | Deps | numpy 2.5.3 · pandas 3.0.6 · scipy 1.18.1 · scikit-learn 1.9.1 · lightgbm 4.7.0 · pytest 9.1.1 |
-| Git tracking | HEAD `14b81aa` · working tree **clean** apart from the five uncommitted STATE.md pins (rule 4.1) · the previously-uncommitted leak-fix work and the untracked docs/`tests/` are now committed; **26 tracked files** under `projects/rgx/` · no push attempted (no GitHub credentials on this machine). This file is left uncommitted on purpose — `scripts/verify_docs.py` reads the **working-tree** pin, so committing the pin into its own commit immediately re-stales it (see `projects/agora/STATE.md`). |
+| Git tracking | HEAD `8e823e5` · working tree **clean** apart from the five uncommitted STATE.md pins (rule 4.1) · the previously-uncommitted leak-fix work and the untracked docs/`tests/` are now committed; **26 tracked files** under `projects/rgx/` · no push attempted (no GitHub credentials on this machine). This file is left uncommitted on purpose — `scripts/verify_docs.py` reads the **working-tree** pin, so committing the pin into its own commit immediately re-stales it (see `projects/agora/STATE.md`). |
 
 ## Build status
 

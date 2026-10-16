@@ -64,3 +64,14 @@ backend/*.log
 
 # Root-level scratch screenshots
 /omnivest-shell.png
+
+# ─── personal agent tooling (this machine, not the projects) ────
+# OpenCode config, MCP server wiring, agent definitions and the quota ledger are
+# workstation setup, not product. They resolve npx cache hashes and absolute home
+# paths, so they are kept on disk and out of the repository.
+.opencode/
+opencode.jsonc
+OPENCODE_BEHAVIOR.md
+push-to-github.sh
+skills
+

@@ -1,5 +1,10 @@
 # CleanTube
 
+[![Platform](https://img.shields.io/badge/platform-Android%20first-3DDC84?logo=android&logoColor=white)](PLAN.md)
+[![Status](https://img.shields.io/badge/status-design%20only%20%C2%B7%20no%20code-orange)](PLAN.md)
+[![Feasibility gate](https://img.shields.io/badge/M0%20feasibility%20gate-not%20yet%20run-critical)](PLAN.md)
+[![Approach](https://img.shields.io/badge/approach-ask%20for%20no%20ads-informational)](#the-idea-that-makes-this-work)
+
 An Android-first Flutter **ad blocker** whose headline target is YouTube.
 
 > **Status: design only.** `PLAN.md` is the sole design document and is

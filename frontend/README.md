@@ -1,5 +1,10 @@
 # OMNIVEST — frontend
 
+[![Flutter](https://img.shields.io/badge/Flutter%20web-3.47-025EBA?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Tests](https://img.shields.io/badge/tests-165%20passing-brightgreen)](test/)
+[![Analyze](https://img.shields.io/badge/flutter%20analyze-0%20issues-blueviolet)](analysis_options.yaml)
+[![Backend](https://img.shields.io/badge/backend-FastAPI-009688?logo=fastapi&logoColor=white)](../backend/)
+
 Flutter web client for the OMNIVEST backend. Five tabs, deliberately ordered by
 what the user actually needs, not by what the software can do.
 

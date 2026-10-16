@@ -2,6 +2,28 @@
 
 All changes to Agora, newest first. Entries quote the commit that carried them.
 
+## 2026-10-17 — AppImage: a FUSE-free artifact and a real launch proof
+
+The reported failure was `Cannot mount AppImage, please check your FUSE setup.` It was
+diagnosed rather than guessed at, and the packaging script now ships a second artifact.
+
+- **Not a missing library.** `libfuse.so.2` is present, `/dev/fuse` exists, and
+  `/usr/bin/fusermount3` is setuid root. The cause is `NoNewPrivs=1` in the session, which
+  nullifies the setuid bit; Ubuntu 24.04's `kernel.apparmor_restrict_unprivileged_userns=1`
+  breaks it the same way outside a container.
+- **`tool/build_appimage.sh` now emits a portable tarball** alongside the AppImage
+  (`build/agora-0.1.0-x86_64.tar.gz`). A type-2 AppImage that cannot mount cannot start at
+  all; the tarball is the same bundle and needs nothing beyond the libraries beside the
+  binary (`$ORIGIN` RPATH). It is the only runnable form on a locked-down host.
+- **Payload proved by extraction:** `--appimage-extract` → a complete `squashfs-root`
+  containing `AppRun`, the `agora` ELF pie executable, `data/`, `lib/` and `usr/`.
+- **Launch proved without FUSE:** `xvfb-run -a ./AppRun` ran the full 30 s timeout (exit
+  124 — alive, not crashed), logged the Impeller/OpenGLES backend, and created
+  `~/.config/agora/agora.sqlite` at `user_version 3` with all 14 tables including the FTS5
+  set. The tarball path and `APPIMAGE_EXTRACT_AND_RUN=1` were verified identically.
+- Closes the gap the 2026-10-17 build entry recorded: launch had been unrepeatable since
+  FUSE was denied and was last verified 2026-10-10.
+
 ## 2026-10-17 — 45 dead `~/.local/bin` shims quarantined (machine fix)
 
 This is what actually unblocked `flutter build linux`; the repo-side guard is only a

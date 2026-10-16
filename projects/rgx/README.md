@@ -1,5 +1,11 @@
 # RGX — Regime-Gated Cross-Sectional Ensemble
 
+[![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://python.org)
+[![Invariant tests](https://img.shields.io/badge/invariant%20tests-47%20passing-brightgreen)](tests/)
+[![Null control](https://img.shields.io/badge/null%20control-6%20passing-brightgreen)](tests/)
+[![Edge claimed](https://img.shields.io/badge/edge%20claimed-none-informational)](#the-honest-result)
+[![Status](https://img.shields.io/badge/status-research%20harness-blue)](STATE.md)
+
 A research harness for a multi-signal, microstructure-gated equity factor, built
 to be **honest before it is profitable**. The centrepiece is a validation
 invariant that must hold: **under a zero-edge null, the pipeline must return no

@@ -54,8 +54,8 @@ make lint           # flutter analyze
 make test-frontend  # lint + flutter test (165 tests)
 ```
 
-The Flutter SDK on this machine is `/home/vajith-husan/flutter-sdk/flutter/bin/flutter`
-(Flutter 3.47.0 / Dart 3.13.0).
+The Flutter SDK used for these numbers is Flutter 3.47.0 / Dart 3.13.0; run
+`flutter --version` to confirm yours before comparing.
 
 ## Traps
 

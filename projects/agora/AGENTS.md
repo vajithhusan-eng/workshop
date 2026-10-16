@@ -112,7 +112,7 @@ goes stale within hours.
 | P4 orchestrator | **done and reachable** | `CouncilRunner` constructs it; `lib/core/council/` holds `TabPool` + `CouncilRunner` |
 | P5 Gemini/DeepSeek | config only | JSON validates and the sandbox drives them, but no run against a **real** logged-in site yet |
 | P6 safety | **done** | `safety.dart`; firewall warnings journaled by `CouncilRunner`; Time Machine replays captured turns into the Sandbox Lab |
-| P7 packaging | **done** | `tool/build_appimage.sh` → `build/agora-0.1.0-x86_64.AppImage` (11.7 MB), launch-verified |
+| P7 packaging | **done** | `tool/build_appimage.sh` → `build/agora-0.1.0-x86_64.AppImage` (12 MB) **and** a portable `build/agora-0.1.0-x86_64.tar.gz`; launch re-verified FUSE-free |
 
 `flutter test` → **290 passed, 1 skipped, 0 failed**. `dart analyze lib/ test/` → **0 errors,
 0 warnings** (62 info). `dart run tool/sandbox_smoke.dart` → 42/42 against real Chrome.
@@ -167,8 +167,14 @@ and `SpeakerSelector` (blocked on the dispatch contradiction below).
   with `python3 -m ensurepip --upgrade`, or use a project venv
   (`backend/.venv`, `projects/rgx/.venv`). `tool/build_appimage.sh` still detects a shim
   that resolves but does not run and falls back to `/usr/bin`. Related: FUSE mounts are
-  denied here (`fusermount: mount failed: Operation not permitted`), so AppImage packaging
-  needs `APPIMAGE_EXTRACT_AND_RUN=1` — the script retries that way automatically.
+  denied here (`fusermount: mount failed: Operation not permitted` — this session runs with
+  `NoNewPrivs=1`, which nullifies fusermount's setuid bit; `libfuse.so.2` and `/dev/fuse`
+  are both present, so it is the sandbox, **not** a missing library), so AppImage packaging
+  needs `APPIMAGE_EXTRACT_AND_RUN=1` — the script retries that way automatically. Because a
+  type-2 AppImage cannot start at all without a mount, `tool/build_appimage.sh` also emits a
+  **portable tarball** (`.tar.gz`) of the same bundle as a first-class artifact; it has no
+  dependency beyond the libs bundled beside the binary (`$ORIGIN` RPATH). Do not remove that
+  artifact — it is the only runnable form on a locked-down host.
 - `PLAN-GROUPCHAT.md` names files that will never exist under those names
   (`security_firewall.dart` → actual `safety.dart`; `context_compiler.dart` →
   `prompt_compiler.dart`). Do not use it as a literal task list.

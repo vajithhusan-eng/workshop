@@ -76,6 +76,26 @@ if ! ARCH="$ARCH" appimagetool --no-appstream "$APPDIR" "$OUT"; then
   ARCH="$ARCH" APPIMAGE_EXTRACT_AND_RUN=1 appimagetool --no-appstream "$APPDIR" "$OUT"
 fi
 
+# A portable bundle alongside the AppImage. An AppImage type-2 mounts itself
+# through FUSE, and on systems where that is unavailable — Ubuntu 24.04 ships
+# kernel.apparmor_restrict_unprivileged_userns=1, containers deny the mount, and
+# NoNewPrivs=1 nullifies fusermount's setuid bit — the single-file artifact
+# cannot start at all. The tarball has no runtime dependency beyond the libraries
+# already bundled next to the binary (the bundle's RPATH is $ORIGIN/lib), so it
+# runs anywhere the AppImage would have.
+PORTABLE="build/${BINARY_NAME}-${VERSION}-${ARCH}"
+TARBALL="${PORTABLE}.tar.gz"
+rm -rf "$PORTABLE" "$TARBALL"
+cp -r "$BUNDLE" "$PORTABLE"
+tar -czf "$TARBALL" -C build "$(basename "$PORTABLE")"
+rm -rf "$PORTABLE"
+
 echo
 echo "built $OUT"
-ls -lh "$OUT"
+ls -lh "$OUT" "$TARBALL"
+echo
+echo "Run it:"
+echo "  ./$(basename "$OUT")"
+echo "      needs FUSE; if it prints 'Cannot mount AppImage', use one of:"
+echo "  APPIMAGE_EXTRACT_AND_RUN=1 ./$(basename "$OUT")"
+echo "  tar -xzf $(basename "$TARBALL") && ./$(basename "$PORTABLE")/$(basename "$BINARY_NAME")"

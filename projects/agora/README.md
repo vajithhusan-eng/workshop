@@ -1,6 +1,13 @@
 # Agora
 
-A multi-AI council for your own desktop. You state a problem once, a leader AI
+[![Platform](https://img.shields.io/badge/platform-Linux-1793D1?logo=linux&logoColor=white)](#install)
+[![Flutter](https://img.shields.io/badge/Flutter-3.47-025EBA?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Tests](https://img.shields.io/badge/tests-290%20passing-brightgreen)](test/)
+[![Analyzer](https://img.shields.io/badge/dart%20analyze-0%20issues-blueviolet)](analysis_options.yaml)
+[![No telemetry](https://img.shields.io/badge/telemetry-none-success)](README.md)
+[![Local-first](https://img.shields.io/badge/data-stays%20on%20your%20machine-informational)](#the-verbatim-vault)
+
+**A multi-AI council for your own desktop.** You state a problem once, a leader AI
 decomposes it and invites other AIs into a real debate, they critique and revise
 until the leader declares it solved — and every word is kept **verbatim**.
 
@@ -12,19 +19,48 @@ your own Chrome, over the Chrome DevTools Protocol.
 
 ## Install
 
-Download the AppImage, make it executable, and run it:
+Two artifacts ship, and they are interchangeable — same binary, same 12 MB:
+
+| Artifact | Needs FUSE to start |
+|---|---|
+| `agora-0.1.0-x86_64.AppImage` | yes, to self-mount |
+| `agora-0.1.0-x86_64.tar.gz` | **no** |
 
 ```bash
+# AppImage — single file, self-mounting
 chmod +x agora-0.1.0-x86_64.AppImage
 ./agora-0.1.0-x86_64.AppImage
+
+# Portable bundle — no FUSE, nothing to install
+tar -xzf agora-0.1.0-x86_64.tar.gz
+./agora-0.1.0-x86_64/agora
 ```
 
-Build it yourself from source:
+### If it says "Cannot mount AppImage, please check your FUSE setup"
+
+An AppImage type 2 mounts itself through FUSE. Three unrelated things break that,
+none of them Agora's fault:
+
+- **Ubuntu 24.04 and later** ship `kernel.apparmor_restrict_unprivileged_userns=1`,
+  which blocks unprivileged user-namespace mounts:
+  `sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0`
+- **Containers and sandboxes** deny the mount outright. `NoNewPrivs=1` also
+  nullifies `fusermount`'s setuid bit, so a setuid `fusermount` does not save you.
+- **`libfuse2` missing** — on Ubuntu 24.04 the package is `libfuse2t64`.
+
+Either fallback works with FUSE switched off entirely:
+
+```bash
+APPIMAGE_EXTRACT_AND_RUN=1 ./agora-0.1.0-x86_64.AppImage
+tar -xzf agora-0.1.0-x86_64.tar.gz && ./agora-0.1.0-x86_64/agora
+```
+
+Build from source:
 
 ```bash
 flutter pub get
 dart run build_runner build            # regenerate drift code after schema edits
-./tool/build_appimage.sh               # needs appimagetool on PATH
+./tool/build_appimage.sh               # emits both artifacts; needs appimagetool on PATH
 ```
 
 ## First run
@@ -80,7 +116,7 @@ lib/
     council/      TabPool + CouncilRunner  (the only code that knows Chrome AND SQLite)
     orchestration/ protocol, budget, convergence, prompt compiler, firewall
     util/         hashing
-  data/           drift schema v2 + SessionRepository
+  data/           drift schema v3 + SessionRepository
   state/          AgoraController
   ui/             theme, sidebar, transcript, council panel, composer, screens
   app.dart        Riverpod wiring
@@ -102,8 +138,8 @@ explaining why, rather than a stack trace.
 ## Tests
 
 ```bash
-flutter test                              # unit + repository suite
-dart analyze lib/ test/                   # 0 errors, 0 warnings expected
+flutter test                              # unit + repository suite: 290 passed, 1 skipped
+dart analyze                              # 0 errors, 0 warnings, 0 info
 
 dart run tool/sandbox_smoke.dart          # 42 checks against a mock AI site in real Chrome
 dart run tool/focus_probe.dart            # proves the anti-throttling CDP calls still work
@@ -117,19 +153,24 @@ deliberately not wired into CI.
 | Path | What |
 |---|---|
 | `~/.config/agora/` | root |
+| `~/.config/agora/agora.sqlite` | the database |
 | `~/.config/agora/chrome-profile` | the dedicated Chrome profile |
+| `~/.config/agora/adapters/` | user adapter overrides, hot-reloaded |
 | `~/.config/agora/vault/<session>/` | screenshots and snapshots |
 | `~/.config/agora/logs/` | logs |
-| `~/.local/share/dev.agora.agora/agora.sqlite` | the database |
 
 Nothing leaves your machine.
 
 ## Known limits
 
 - **One live council at a time.** Each agent is a Chromium tab at 150–300 MB.
-- The onboarding wizard and live selector probing in Calibration Studio are not
-  built yet.
-- Journal replay (Time Machine) is not built yet.
+- **Time Machine has no in-app UI.** The replay engine
+  (`lib/core/council/journal_replay.dart`) and a manual harness
+  (`tool/journal_replay.dart`, which replays a captured session against the
+  Bundled Sandbox Lab) both exist — there is simply no button for it yet.
+- **Live-site verification is partial.** The shipped ChatGPT, Gemini and DeepSeek
+  configs validate and drive the mock site end to end; a recorded run against each
+  *logged-in real* site does not exist yet.
 - Verified against Chrome 154 on Linux/Wayland.
 
 ## Design
