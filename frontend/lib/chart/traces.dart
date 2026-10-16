@@ -1,4 +1,4 @@
-/// The overlay model: indicator traces to draw on top of, or beneath, price.
+/// The trace model: indicator traces to draw on top of, or beneath, price.
 ///
 /// Pure Dart with no JS imports, deliberately. The rendering is web-only but
 /// the *reasoning* about a warm-up gap is not, and this is where that reasoning
@@ -18,12 +18,16 @@
 /// run is drawn as its own line. No bridge, no fill, no invented point.
 library;
 
+import 'dart:ui' show Color;
+
 import 'package:flutter/foundation.dart';
+
+import '../theme/terminal.dart';
 
 /// One indicator trace, index-aligned with the candles it annotates.
 @immutable
-class Overlay {
-  const Overlay({
+class Trace {
+  const Trace({
     required this.key,
     required this.label,
     required this.color,
@@ -33,7 +37,7 @@ class Overlay {
   });
 
   /// Must match a key in the backend's `indicator_series` payload. Drift here
-  /// makes the overlay silently vanish rather than error, so the tests assert
+  /// makes the trace silently vanish rather than error, so the tests assert
   /// the keys against a real payload instead of trusting them.
   final String key;
 
@@ -139,15 +143,22 @@ const _pricePanes = <String>[
 const _separatePanes = <String, String>{
   'rsi_14': 'rsi',
   'macd': 'macd',
+  // The signal line shares the MACD pane. A MACD pane holding only the MACD
+  // line is missing the half of the indicator that produces the reading.
+  //
+  // `macd_histogram` is deliberately not drawn: it is a histogram, and drawing
+  // it as a line would misrepresent what it is.
+  'macd_signal': 'macd',
 };
 
-const _LABELS = <String, String>{
+const _labels = <String, String>{
   'sma_20': 'SMA 20',
   'sma_50': 'SMA 50',
   'ema_9': 'EMA 9',
   'ema_21': 'EMA 21',
   'rsi_14': 'RSI 14',
   'macd': 'MACD',
+  'macd_signal': 'Signal',
   'bollinger_upper': 'BB+',
   'bollinger_lower': 'BB−',
 };
@@ -155,48 +166,78 @@ const _LABELS = <String, String>{
 /// Which pane an indicator belongs in, or null if it is not drawn.
 String? paneFor(String key) => _separatePanes[key];
 
-/// True when [key] is one this app draws. Kept separate from [overlayFor] so a
+/// True when [key] is one this app draws. Kept separate from [traceFor] so a
 /// test can assert the drawn set without constructing anything.
 bool isDrawn(String key) =>
     _pricePanes.contains(key) || _separatePanes.containsKey(key);
 
-/// Build one overlay, or null if the key is not drawn.
-Overlay? overlayFor(String key, List<double?> values) {
+/// Build one trace, or null if the key is not drawn.
+Trace? traceFor(String key, List<double?> values) {
   if (!isDrawn(key)) return null;
-  return Overlay(
+  return Trace(
     key: key,
-    label: _LABELS[key] ?? key,
+    label: _labels[key] ?? key,
     color: _colorFor(key),
     values: values,
     pane: _separatePanes[key],
   );
 }
 
+/// Colours come from the theme rather than being defined here.
+///
+/// Duplicating them would mean the chart and the HUD could disagree about what
+/// "the RSI line" looks like — and two parts of one screen showing the same
+/// indicator in different colours is exactly the class of quiet contradiction
+/// this app is built to catch.
 Color _colorFor(String key) => switch (key) {
-      'sma_20' => const Color(0xFFE0B341),
-      'sma_50' => const Color(0xFF9B7BE0),
-      'ema_9' => const Color(0xFF4A9DB8),
-      'ema_21' => const Color(0xFFCE6BA8),
-      'rsi_14' => const Color(0xFFB08BD9),
-      'macd' => const Color(0xFF4A9DB8),
-      'bollinger_upper' || 'bollinger_lower' => const Color(0x665E8C9B),
-      _ => const Color(0xFF9FB0AD),
+      'sma_20' => Terminal.sma20,
+      'sma_50' => Terminal.sma50,
+      'ema_9' => Terminal.ema9,
+      'ema_21' => Terminal.ema21,
+      'rsi_14' => Terminal.rsi,
+      'macd' => Terminal.macdLine,
+      'macd_signal' => Terminal.macdSignal,
+      'bollinger_upper' || 'bollinger_lower' => Terminal.bb,
+      _ => Terminal.ink2,
     };
 
-/// Turn the backend's `indicator_series` panel into drawable overlays.
+/// Turn the backend's `indicator_series` panel into drawable traces.
 ///
 /// Returns them in draw order: later entries paint over earlier ones, so the
 /// returned list is reversed relative to [_pricePanes] to keep the first-listed
 /// trace on top where two of them cross.
-List<Overlay> buildOverlays(Map<String, dynamic>? panel) {
+List<Trace> buildTraces(Map<String, dynamic>? panel) {
   if (panel == null || panel.isEmpty) return const [];
-  final out = <Overlay>[];
+  final out = <Trace>[];
 
   void add(String key) {
     final raw = panel[key];
     if (raw is! List || raw.isEmpty) return;
-    final overlay = overlayFor(key, raw.map(asNum).toList());
-    if (overlay != null && overlay.hasData) out.add(overlay);
+
+    // Any unparseable entry drops the *whole* series, rather than nulling that
+    // one point. A null point on a chart reads as a gap in the market data;
+    // a string in the payload is a bug, and rendering it as a gap would let
+    // the bug pose as a market fact. A missing line is loud. A plausible lie
+    // is not — and this is an app whose entire argument is about not doing
+    // the second thing.
+    final values = <double?>[];
+    var broken = false;
+    for (final v in raw) {
+      if (v == null) {
+        values.add(null);
+        continue;
+      }
+      final d = asNum(v);
+      if (d == null) {
+        broken = true;
+        break;
+      }
+      values.add(d);
+    }
+    if (broken) return;
+
+    final trace = traceFor(key, values);
+    if (trace != null && trace.hasData) out.add(trace);
   }
 
   for (final k in _pricePanes) {

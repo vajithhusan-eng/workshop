@@ -15,8 +15,8 @@
 ///    in its own chrome.
 library;
 
-import 'dart:ui' show FontFeature;
-
+// `FontFeature` comes through `material.dart`; importing `dart:ui` as well is
+// a redundant import the analyzer rightly flags.
 import 'package:flutter/material.dart';
 
 /// Terminal colours and metrics. Never instantiated — every member is static.
@@ -52,10 +52,24 @@ class Terminal {
 
   static const ink = Color(0xFFE6EDF0);
   static const ink2 = Color(0xFF9FB0AD);
-  static const ink3 = Color(0xFF6B7B79); // axis labels, captions
-  static const ink4 = Color(0xFF485552); // disabled — must stay legible on
-  // `panel`, so it is verified against that surface in the tests rather than
-  // tuned by eye.
+
+  /// Axis labels, captions, and the `NO_DATA` verdict.
+  ///
+  /// Was `#6B7B79`, which measured 4.10:1 on [panel] and 3.84:1 on [raised] —
+  /// under the 4.5:1 WCAG AA floor for text. Brightened to `#7B8D8B`, which
+  /// clears 4.5:1 on every surface including [hover].
+  static const ink3 = Color(0xFF7B8D8B);
+
+  /// Disabled / inert text.
+  ///
+  /// Was `#485552`, which measures 2.34:1 against [panel] — below WCAG's 3:1
+  /// floor, so the comment claiming it "stays legible" was false. Brightened to
+  /// `#657672`: 3.80:1 on [panel], 3.56:1 on [raised], 3.28:1 on [hover].
+  /// Still clearly recessed behind [ink3] and now actually readable.
+  ///
+  /// The tests assert the ratio rather than trusting the eye, which is what
+  /// let the original value through.
+  static const ink4 = Color(0xFF657672);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   //
@@ -66,10 +80,38 @@ class Terminal {
   static const buy = Color(0xFF26A65B);
   static const buyDim = Color(0xFF1B7F4B);
   static const sell = Color(0xFFE0526F);
-  static const sellDim = Color(0xFFBE185D);
-  static const hold = Color(0xFFD9A441);
-  static const avoid = Color(0xFFE07A3F);
-  static const nodata = Color(0xFF6B7B79);
+
+  /// Dimmed variants, for chart fills and secondary rows where a full-strength
+  /// verdict would shout. `sellDim` was `#BE185D` at 2.82:1 on [raised] — under
+  /// the 3:1 floor — so it is now `#D61C69`, which clears 3:1 on every surface
+  /// while staying visibly below [sell].
+  static const sellDim = Color(0xFFD61C69);
+
+  /// "Caution" — a warning, not a direction.
+  ///
+  /// Was `#D9A441`, close enough to [sell] under deuteranopia that SELL and
+  /// HOLD read as a single colour at 1.09:1. Brightened to `#F8BC4C`:
+  /// 1.45:1 against SELL, 4.28:1 against BUY, still 4.4:1 on the dimmest
+  /// surface.
+  static const hold = Color(0xFFF8BC4C);
+
+  /// "Stay out". Deep burnt orange.
+  ///
+  /// Was `#E07A3F`, a near-sibling of [hold]: the two measured 0.20 apart in
+  /// RGB and 1.04:1 under a deuteranopia simulation, so a reader with the
+  /// commonest form of colour deficiency could not tell a HOLD from an AVOID
+  /// at all. Now 0.39 RGB separation and 2.08:1, on 3.6:1 contrast everywhere.
+  ///
+  /// This does not make the palette fully separable under deuteranopia — see
+  /// `terminal_test.dart` for which pairs are and which are not, and why 1.5:1
+  /// is unreachable without muting BUY.
+  static const avoid = Color(0xFFB66231);
+
+  /// Aliases onto the ink ramp on purpose: "no answer" is an absence of
+  /// information, so it wears an absence-of-emphasis colour rather than one of
+  /// the five verdicts. Aliasing also means it cannot drift out of AA the way
+  /// an independently-tuned literal did.
+  static const nodata = ink3;
 
   static const good = buy;
   static const bad = sell;
@@ -148,7 +190,7 @@ class Terminal {
   // ── Theme ─────────────────────────────────────────────────────────────────
 
   static ThemeData theme() {
-    final scheme = const ColorScheme.dark(
+    const scheme = ColorScheme.dark(
       surface: panel,
       primary: info,
       secondary: buy,

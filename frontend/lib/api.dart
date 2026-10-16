@@ -157,6 +157,39 @@ class Api {
         (v) => _map(v),
       );
 
+  /// Everything the terminal needs for one symbol in a single round trip:
+  /// candles, the 27-series indicator panel, the scalars the HUD renders, and
+  /// the verdict — all computed by Python from the same bar array.
+  ///
+  /// One request rather than several on purpose. The chart and the panel beside
+  /// it must not be able to disagree, and fetching them separately turns that
+  /// disagreement from a bug into a race.
+  Future<Result<Map<String, dynamic>>> analysis(
+    String symbol, {
+    String interval = '1d',
+    String range = '1y',
+    bool includeIndicators = true,
+  }) =>
+      get(
+        '/analysis/symbol?symbol=${Uri.encodeQueryComponent(symbol)}'
+        '&interval=$interval&range=$range'
+        '&include_indicators=$includeIndicators',
+        (v) => _map(v),
+      );
+
+  /// Rank a basket by conviction. Returns what it could *not* judge alongside
+  /// what it could — see `unavailable`.
+  Future<Result<Map<String, dynamic>>> scan({
+    List<String> symbols = const [],
+    String interval = '1d',
+    String range = '3mo',
+  }) =>
+      get(
+        '/analysis/scan?symbols=${Uri.encodeQueryComponent(symbols.join(','))}'
+        '&interval=$interval&range=$range',
+        (v) => _map(v),
+      );
+
   Future<Result<List<dynamic>>> techniques() =>
       get('/techniques', (v) => (v as Map)['items'] as List<dynamic>);
 
