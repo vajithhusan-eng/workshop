@@ -26,7 +26,7 @@
   // auto-compaction thresholds than the root config intended.
   "compaction": {
     "auto": true,
-    "keep": { "tokens": 12000 },
+    "keep": { "tokens": 15000 },
     "buffer": 20000
   }
 }
