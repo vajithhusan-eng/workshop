@@ -15,6 +15,7 @@ Read in this order:
 | 5 | [`PSYCHOLOGY.md`](PSYCHOLOGY.md) | Behavior-science field map, technique catalog, dark psychology, **12 red lines**. |
 | 6 | [`BEHAVIOR-SCIENCE-DEEP.md`](BEHAVIOR-SCIENCE-DEEP.md) | The engineering spec: each mechanic with its citation (four laws, stages of change, relapse prevention/AVE, HRT, self-monitoring, commitment devices, endowed progress, fresh start). |
 | 7 | [`GAMIFICATION-ETHICS.md`](GAMIFICATION-ETHICS.md) | The persuasion-vs-manipulation line, dark patterns in games, and Arise's operational ethics rules. |
+| 8 | [`PORN-MASTURBATION-CONTROL.md`](PORN-MASTURBATION-CONTROL.md) | **Highest-stakes use case.** The contested science of porn compulsion, PIED, NoFap reboot/flatline, the recovery-book canon, clinical toolkit, and the domain's ethical guardrails (target compulsion, never shame). |
 
 Orientation files live one level up: [`../AGENTS.md`](../AGENTS.md),
 [`../STATE.md`](../STATE.md).
