@@ -1,37 +1,57 @@
-node_modules/
-__pycache__/
-*.pyc
-*.db
-*.db-shm
-*.db-wal
-*.sqlite
-.env
-.env.local
-secret.json
-*.log
+# ─── OS / editor ────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
+*.iml
 *.swp
 *.swo
 *~
-node_modules/
-.venv/
-venv/
-dist/
-build/
-*.egg-info/
+
+# ─── secrets & local env (never commit these) ───────────────────
+.env
+.env.local
+secret.json
+
+# ─── Python ─────────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ─── Node ───────────────────────────────────────────────────────
+node_modules/
+
+# ─── Dart / Flutter ─────────────────────────────────────────────
 .dart_tool/
 .flutter-plugins-dependencies
 .packages
 **/ephemeral/
 
-# Agora build outputs
-projects/agora/frontend/build/
+# ─── build output ───────────────────────────────────────────────
+build/
+dist/
+
+# ─── databases ──────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# ─── logs ───────────────────────────────────────────────────────
+*.log
+
+# ─── tool scratch that is generated, not source ─────────────────
+.playwright-mcp/
+.devsup/
 
 # OMNIVEST runtime state (user data, not source)
 backend/omnivest_journal.json
 backend/*.log
+
+# Root-level scratch screenshots
+/omnivest-shell.png

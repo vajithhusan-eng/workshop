@@ -1,0 +1,18 @@
+# Normalize line endings to LF in the repository. Working-tree checkouts on
+# Windows can still use CRLF via core.autocrlf / this file's eol setting.
+* text=auto eol=lf
+
+# Never touch the line endings of binary files.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.so   binary
+*.AppImage binary
+*.iml  binary
+
+# Generated Dart sources — collapse in diffs and keep out of language stats.
+*.g.dart linguist-generated=true
+flutter_export_environment.sh linguist-generated=true
