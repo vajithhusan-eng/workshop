@@ -46,9 +46,8 @@ dev-review:
 	python3 scripts/devsup.py review $(ACTION)
 
 push:
-	@echo "🚀 Pushing to GitHub..."
-	gh repo view vajithhusan-eng/workshop --json name 2>/dev/null && git push origin master || git push origin master
-	@echo "✅ Done!"
+	@echo "🚀 Pushing master to GitHub (vajithhusan-eng/workshop)…"
+	git push origin master
 
 backend:
 	cd backend && ./.venv/bin/python run.py

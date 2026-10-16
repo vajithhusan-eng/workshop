@@ -134,11 +134,15 @@ and `SpeakerSelector` (blocked on the dispatch contradiction below).
   `linux/runner/*.cc` was checked by no tool at all. `tool/cpp_lint.sh` closes it via
   `clang++ -fsyntax-only -Wall -Wextra`, deriving every flag from the real CMake files. Do
   not "fix" the exclusion by deleting it — the comment there explains why it stays.
-- `tool/dbg2.dart` is untracked scratch. It **no longer carries any analyzer warning**
-  (`dart analyze tool/` → 0 errors, 0 warnings, 28 info) — it is kept only because **another
-  agent commits in this monorepo concurrently and runs `git clean`/`git restore`;** that has
-  already destroyed untracked work here. Do not assume an untracked file is yours to delete.
-  Commit after every edit and re-`grep` before trusting a result.
+- `tool/dbg2.dart` and its siblings (`run_*.dart`, `check_load*.dart`, `debug*.dart`,
+  `probe_fix.dart`) are **ignored scratch — kept on disk, never shipped.** They are dead
+  helpers written against an older API and are the *only* source of analyzer output in
+  `tool/` (whole directory: 4 warnings, 20 errors; tracked sources: 22 info, 0 err, 0 warn —
+  check with `dart analyze $(git ls-files 'tool/*.dart')`). They are `.gitignore`d rather
+  than deleted because **another agent commits in this monorepo concurrently and runs
+  `git clean`/`git restore`;** that has already destroyed untracked work here. Ignoring them
+  additionally makes a plain `git clean -fd` skip them. Do not assume an untracked file is
+  yours to delete. Commit after every edit and re-`grep` before trusting a result.
 - Chrome 136+ blocks `--remote-debugging-port` on the default `--user-data-dir`.
   A **dedicated** profile at `~/.config/agora/chrome-profile` is mandatory. `PLAN.md`
   §0/§1.4 still over-promises "your own logged-in Chrome" — that text is stale, §4.1 is
