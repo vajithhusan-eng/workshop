@@ -41,8 +41,9 @@ pkg-config --exists gtk+-3.0 2>/dev/null || fail \
 
 EPHEMERAL="linux/flutter/ephemeral"
 [ -f "$EPHEMERAL/generated_config.cmake" ] || fail \
-  "$EPHEMERAL/generated_config.cmake missing -- run 'flutter build linux' once, or
-   'flutter pub get', to generate it. Generated files are not committed."
+  "$EPHEMERAL/generated_config.cmake missing -- run 'flutter build linux' once to
+   generate it. A bare 'flutter pub get' does NOT create it. Generated files are not
+   committed."
 
 FLUTTER_ROOT="$(sed -n 's/^file(TO_CMAKE_PATH "\(.*\)" FLUTTER_ROOT)$/\1/p' \
   "$EPHEMERAL/generated_config.cmake" | head -1)"
