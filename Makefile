@@ -10,7 +10,7 @@ help:
 	@echo "  make dev-start X  - Start target X on a free port (backend|frontend|agora)"
 	@echo "  make dev-preview X - Print the browser-preview URL for target X (opens nothing)"
 	@echo "  make dev-review on|off|status - Arm/disarm opening a browser (default OFF)"
-	@echo "  make docs-check      - Fail if a STATE.md is stale or an agent is shadowed"
+	@echo "  make docs-check      - Fail if a STATE.md pin does not resolve, or an agent is shadowed"
 	@echo "  make projects-check  - Fail if a project is missing its standard files"
 	@echo "  make check           - projects-check + docs-check (the full gate)"
 	@echo "  make test         - Run all tests (unit + api + frontend)"

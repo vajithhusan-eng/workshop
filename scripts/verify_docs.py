@@ -1,22 +1,30 @@
 #!/usr/bin/env python3
 """Catch the two failure modes that keep recurring in this workspace.
 
-1. STALE STATE FILES. Every STATE.md pins the commit it was verified against. If
-   HEAD has moved since, the file is describing a tree that no longer exists. This
-   is not hypothetical: the agora STATE.md went stale within minutes of being
-   written, three separate times, because parallel agents keep committing.
+1. STATE PINS WITH NOTHING BEHIND THEM. Every STATE.md pins the commit it was
+   verified against. That pin is a *record* -- "this file describes the tree at
+   <commit>" -- so it is allowed to name an older commit. What it may never do is
+   name a commit this history does not contain, which is what an invented,
+   truncated or rebased-away hash looks like. A pin that is merely old is honest;
+   a pin that is unverifiable is a claim with nothing behind it.
+
+   THIS REPLACED A STRICTER RULE. The check used to demand `pin == HEAD`, which can
+   only hold while STATE.md is a dirty working-tree file. That made a published,
+   clean checkout impossible and forced "leave STATE.md uncommitted" (the old rule
+   4.1) -- which in turn meant the pins on GitHub were permanently stale while still
+   looking authoritative. The old rule could not tell "old" from "invented".
 
 2. SHADOWED AGENTS. An agent defined both inline in opencode.jsonc and as a file in
    agents/ silently loses to the file version. Editing the inline copy does nothing
    and looks like it worked.
 
 Usage:
-    python3 scripts/verify_docs.py            # report, exit 1 if stale
+    python3 scripts/verify_docs.py            # report, exit 1 on an unverifiable pin
     python3 scripts/verify_docs.py --warn     # report, always exit 0
     python3 scripts/verify_docs.py --quiet    # only failures
 
-Exits 1 when any STATE.md is pinned to a commit that is not HEAD, or a state file
-is unpinned (cannot be checked). Exit 0 otherwise.
+Exits 1 when any STATE.md is pinned to a commit that is not in this history, or is
+unpinned (cannot be checked). Drift behind HEAD is reported, never fatal.
 """
 
 from __future__ import annotations
@@ -51,6 +59,39 @@ def head(root: Path = REPO) -> str:
         return ""
 
 
+def is_ancestor(sha: str, root: Path = REPO) -> bool:
+    """True when `sha` names a commit reachable from HEAD."""
+    try:
+        r = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", sha, "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
+def behind(sha: str, root: Path = REPO) -> int:
+    """Commits between `sha` and HEAD; 0 when they are the same commit."""
+    try:
+        r = subprocess.run(
+            ["git", "rev-list", "--count", f"{sha}..HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return 0
+    try:
+        return int(r.stdout.strip() or "0")
+    except ValueError:
+        return 0
+
+
 def check_state_file(path: Path, want: str) -> tuple[str, str]:
     """Return (status, detail) for one STATE.md.
 
@@ -80,9 +121,12 @@ def check_state_file(path: Path, want: str) -> tuple[str, str]:
         if unpinned:
             return ("UNPINNED", "says 'working tree' -- cannot be checked")
         return ("UNPINNED", "no commit pinned -- add one so this can be checked")
-    if pinned != want:
-        return ("STALE", f"pinned {pinned}, HEAD is {want}")
-    return ("ok", f"pinned {pinned} == HEAD")
+    if pinned == want:
+        return ("ok", f"pinned {pinned} == HEAD")
+    if is_ancestor(pinned, path.parent):
+        n = behind(pinned, path.parent)
+        return ("ok", f"pinned {pinned}, {n} commit(s) behind HEAD -- verified earlier")
+    return ("STALE", f"pinned {pinned}, which is not in this history")
 
 
 def shadowed_agents() -> dict[str, Path]:
@@ -156,8 +200,9 @@ def main() -> int:
         print("  Each inline entry is commented with the same warning.")
 
     if bad:
-        print(f"\n{bad} state file(s) need re-verification.")
-        print("Re-verify against HEAD, then update the 'Verified' line.")
+        print(f"\n{bad} state file(s) pin a commit this history does not contain.")
+        print("A pin records what was verified, so naming an older commit is fine.")
+        print("Naming a commit that does not exist is not. Fix the pin.")
     return 0 if (a.warn or bad == 0) else 1
 
 

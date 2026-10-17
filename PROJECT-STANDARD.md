@@ -10,7 +10,7 @@ enforces them.
 
 ```
 make projects-check      # every project has the required files, headers are well-formed
-make docs-check          # STATE.md pins match HEAD; no agent is defined twice
+make docs-check          # every STATE.md pin resolves in this history; no agent twice
 make check               # both
 ```
 
@@ -77,10 +77,14 @@ sections, newest first.
 
 ## 4. Rules that apply to every project
 
-1. **STATE.md is left uncommitted.** The pin names HEAD, so committing the file
-   moves HEAD and instantly re-stales it. Update the pin as the *last* edit of a
-   work session and leave it in the working tree. This is enforced by
-   `scripts/verify_docs.py`, and it is not a bug to work around.
+1. **A STATE.md pin is a record, not a working-tree fact — commit it.** The pin names
+   the commit the file's claims were produced against, so it is *allowed* to be older
+   than HEAD; `scripts/verify_docs.py` fails only when the pinned commit does not exist
+   in this history, which is the shape an invented or rebased-away hash takes. This
+   replaced an earlier rule that demanded `pin == HEAD`: that could only hold while
+   STATE.md was a dirty working-tree file, so it kept the file permanently uncommitted
+   and the published pins permanently stale — and it could not tell "old" from
+   "invented".
 2. **Claim a file before editing it.** `python3 scripts/devsup.py claim <path>
    --note "why"`. A refused claim means coordinate, not overwrite. Release with
    `devsup.py release <path>`.
@@ -135,13 +139,15 @@ different stack from everything in `projects/` — and moving them would invalid
 every path in their own docs, the Makefile and `scripts/verify_api.sh` for no
 benefit. They are exempt from the *location* convention, not from the standard.
 
-## 7. What `make check` does and does not gate in CI
+## 7. What CI gates
 
-`.github/workflows/test.yml` runs `verify_projects.py` as a **hard gate** and
-`verify_docs.py --warn` as **advisory**. That asymmetry is deliberate: the
-document set is committed, but the pins are not (rule 4.1), so on a fresh checkout
-the pins always name an older commit. A CI job that failed on that would be red on
-every run and would teach people to ignore it.
+`.github/workflows/test.yml` runs the documentation gates (`verify_projects.py`,
+`verify_docs.py`) **and every product suite** — Agora's Dart analyze + tests and its
+C++ runner lint, RGX's invariant suite *and* its slow null control, OMNIVEST's
+backend unit checks and its Flutter web tests. All of it is a hard gate: the badge
+is the whole gate, not a subset of it.
 
-The product suites are not in CI — they need Flutter, a virtualenv and, for the
-API smoke test, a running server. They run locally via `make verify`.
+What deliberately stays out: Agora's real-Chrome checks in `tool/` (they need a
+visible Chrome and a logged-in session) and OMNIVEST's live API smoke test (it needs
+a running server). Both are manual and opt-in, and running them locally is `make
+verify`.

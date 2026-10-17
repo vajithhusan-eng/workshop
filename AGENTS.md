@@ -71,14 +71,16 @@ command has actually been run.
   mid-write: re-read, do not assume your earlier read still holds.
 - **Check `git status` before assuming a file is untouched.** There is usually
   uncommitted work in flight, and it may be someone else's.
-- **A `STATE.md` pinned to an old commit is a red line.** Run `make check`:
-  `projects-check` enforces the document set, `docs-check` the pin freshness and
-  duplicate-agent rule. Docs go stale here within minutes, not weeks.
+- **A `STATE.md` pin must name a commit that exists.** Run `make check`:
+  `projects-check` enforces the document set, `docs-check` that every pin resolves in
+  this history and that no agent is defined twice. A pin may legitimately be older
+  than HEAD; it may never be invented. Docs go stale here within minutes, not weeks.
 - **Every project carries the same document set** — `README.md`, `AGENTS.md`,
   `STATE.md`, `CHANGELOG.md`, `docs/README.md` — because
   [`PROJECT-STANDARD.md`](PROJECT-STANDARD.md) says so and `make projects-check`
-  enforces it. `STATE.md` is updated **last** and left **uncommitted**: the pin
-  names HEAD, so committing it re-stales it. That is rule 4.1, not a bug.
+  enforces it. `STATE.md` holds the pin and the exact commands that produced its
+  numbers; update the pin as the *last* edit of a work session, then commit it with
+  the rest of the change.
 - **`projects/agora/ARCHITECTURE-legacy.md` is archived.** It documents the deleted
   Python backend. Never build against it or resurrect its patterns.
 - **`backend/` and `frontend/` are a different stack** — Python/FastAPI and Flutter,

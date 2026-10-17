@@ -12,7 +12,7 @@ repeat yourself.
 [![Flutter](https://img.shields.io/badge/Flutter-3.47-025EBA?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Tests](https://img.shields.io/badge/tests-645%20passing-brightgreen)](#verification)
+[![Tests](https://img.shields.io/badge/tests-651%20passing-brightgreen)](#verification)
 [![CI](https://github.com/vajithhusan-eng/workshop/actions/workflows/test.yml/badge.svg)](https://github.com/vajithhusan-eng/workshop/actions/workflows/test.yml)
 
 ---
@@ -44,7 +44,7 @@ flowchart LR
 |---|---|
 | **Why it is hard** | Browser automation against sites that actively change. Selectors live in versioned JSON, not code, so a site redesign is a config update — never an app release. |
 | **Guarantees** | No server, no cloud, no API keys, no telemetry. Strict machine-readable dispatch blocks: free text can never trigger an action. |
-| **Verified** | `flutter test` — 290 passing · `dart analyze` — 0 issues · 5-file C++ runner lint clean · ships as a 12 MB AppImage **and** a portable tarball |
+| **Verified** | `flutter test` — 296 passing · `dart analyze` — 0 issues · 5-file C++ runner lint clean · ships as a 12 MB AppImage **and** a portable tarball |
 | **Built with** | Dart 3.13 · Flutter 3.47 · raw CDP over WebSocket · SQLite via drift (schema v3, FTS5) |
 
 → **[Read the full write-up](projects/agora/README.md)**
@@ -110,14 +110,16 @@ above can be trusted:
   it. New projects are stamped from `templates/project/` by
   [`scripts/new_project.py`](scripts/new_project.py).
 - **State is derived, never asserted.** Every project's `STATE.md` carries the
-  exact commit it was verified against and the exact commands that produced the
-  numbers. `make docs-check` fails when a pin no longer matches HEAD, so a
-  stale status cannot survive.
+  commit it was verified against and the exact commands that produced the numbers.
+  `make docs-check` fails when a pin names a commit this history does not contain,
+  so an invented or rebased-away status cannot survive.
 - **Documentation states what is missing.** Every README has a *known limits*
   section. Agora's lists the features that are deliberately not built; RGX's
   reports that it finds no edge. Gaps are recorded, not papered over.
-- **CI gates what can be gated.** `verify_projects.py` runs hard; the pin check
-  runs advisory, because a pin is a working-tree fact.
+- **CI runs the real suites, not a lint of them.** Every push runs Agora's Dart
+  analyze + tests and its C++ runner lint, RGX's invariant suite *and* its slow null
+  control, OMNIVEST's backend unit checks and its Flutter web tests, plus the
+  document gates. The badge is the whole gate.
 - **Commits** follow `<type>(<scope>): <description>`.
 
 ## Verification
@@ -126,20 +128,22 @@ Every command below is real, runnable, and was used to write this page.
 
 ```bash
 # Agora — Flutter desktop
-cd projects/agora && flutter test        # 290 passing, 1 intentional skip
+cd projects/agora && flutter test        # 296 passing, 1 intentional skip
 cd projects/agora && dart analyze        # 0 errors, 0 warnings, 0 info
 cd projects/agora && ./tool/cpp_lint.sh  # native runner: 5 files, 0 warnings
+                                         #   (run `flutter build linux` once first —
+                                         #    the lint needs the generated config)
 
 # RGX — quant research
 cd projects/rgx && .venv/bin/python -m pytest tests/                    # 47 passing
 cd projects/rgx && RGX_SLOW=1 .venv/bin/python -m pytest tests/         # 53 passing
 
 # OMNIVEST
-cd backend  && python -m app.tests.test_units    # 143 checks
-cd frontend && flutter test                      # 165 passing
+make test-unit                             # 143 checks (forensics math + watch-loop rules)
+cd frontend && flutter test                # 165 passing
 
 # The documentation standard
-make check   # every project has its files; every STATE.md pin matches HEAD
+make check   # every project has its files; every STATE.md pin resolves in history
 ```
 
 ## Layout

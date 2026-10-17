@@ -1,7 +1,7 @@
 # Agora — STATE
 
 **Derived file.** Regenerate by verifying, not by trusting commit messages or this file.
-**Verified:** 2026-10-17 · `HEAD 5df8f0b` · Flutter 3.47.0 / Dart 3.13.0 ·
+**Verified:** 2026-10-17 · `HEAD d28aff9` · Flutter 3.47.0 / Dart 3.13.0 ·
 `flutter test` 296 passed / 1 skipped; `dart analyze` and `flutter analyze` both
 **`No issues found!` — 0 errors, 0 warnings, 0 info, exit 0.** Before this sweep a bare
 `dart analyze` on the package reported **20 errors + 197 info**; every error, and all 22
@@ -17,9 +17,10 @@ sources + tests. `VISION.md` was deleted after `ce31de1` and **restored** byte-f
 it holds the user's verbatim vision and the standing rule is add-only-never-delete. The
 remaining `tool/` scratch (`run_*.dart`, `check_load*.dart`, `debug*.dart`, `dbg2.dart`,
 `probe_fix.dart`) is **ignored, not deleted**, so a plain `git clean -fd` can no longer
-destroy it. This STATE.md edit is deliberately **left uncommitted**: `verify_docs.py`
-compares the working-tree pin against HEAD, so committing the pin would immediately
-re-stale it. Do not "fix" that by committing this file.
+destroy it. The pin at the top of this file names the commit these claims were produced
+against. A pin is a *record*, so it may legitimately be older than HEAD, and this file is
+committed like any other — `scripts/verify_docs.py` fails only on a pin that names a
+commit this history does not contain.
 
 **Analyzer scope (2026-10-17).** `analysis_options.yaml` now excludes those same five
 scratch globs under `analyzer.exclude`. That is a *scope* fix, not a suppression: the

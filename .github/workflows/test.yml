@@ -2,27 +2,167 @@ name: Test
 
 on: [push, pull_request]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# What this gates, and what it deliberately does not:
+#
+#   IN  every product's real suite -- Agora's Dart analyze + tests and its C++
+#       runner lint, RGX's invariants *and* its slow null control, OMNIVEST's
+#       backend unit checks and its Flutter web tests -- plus the two document
+#       gates. The badge is the whole gate, not a subset of it.
+#
+#   OUT Agora's real-Chrome checks in tool/ (they need a visible Chrome and a
+#       logged-in session) and the live API smoke test (needs a running server).
+#       Both are manual and opt-in; `make verify` runs them locally.
+
 jobs:
-  checks:
+  docs:
+    name: documentation gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # REQUIRED. verify_docs.py resolves each STATE.md pin against history,
+          # so a depth-1 clone makes every pin look unresolvable and the job
+          # would fail for a reason that has nothing to do with the docs.
+          fetch-depth: 0
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       # Hard gate: the document set is committed, so a missing README / AGENTS /
       # STATE / CHANGELOG / docs index is a real failure.
-      - name: Project documentation standard
+      - name: Every project carries the standard document set
         run: python3 scripts/verify_projects.py
 
-      # Advisory only. STATE.md pins name the *local* HEAD and are deliberately
-      # left uncommitted (see PROJECT-STANDARD.md rule 4.1), so on a fresh
-      # checkout they always name an older commit. `--warn` reports the drift
-      # without failing the build.
-      - name: STATE.md freshness (advisory)
-        run: python3 scripts/verify_docs.py --warn
+      # Hard gate too: a pin records the commit its claims were produced against,
+      # so it may be older than HEAD -- but it may never name a commit that does
+      # not exist. That is what an invented or rebased-away hash looks like.
+      - name: Every STATE.md pin resolves in this history
+        run: python3 scripts/verify_docs.py
 
-      # The product suites need Flutter, a virtualenv and, for the API smoke
-      # test, a running server. They are run locally via `make verify`; wiring
-      # them here is a separate piece of work.
+  agora:
+    name: agora — analyze + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+        working-directory: projects/agora
+
+      # lib/data/database.g.dart is committed on purpose, so there is no codegen
+      # step here. See projects/agora/AGENTS.md -- do not add a *.g.dart ignore.
+      - name: Analyze
+        run: dart analyze --fatal-infos --fatal-warnings
+        working-directory: projects/agora
+
+      - name: Test
+        run: flutter test
+        working-directory: projects/agora
+
+  agora-cpp:
+    name: agora — linux runner lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # Install GTK headers BEFORE building. `flutter build linux` runs CMake, and
+      # CMake aborts with "The following required packages were not found:
+      # gtk+-3.0" if they are absent. Order is load-bearing.
+      - name: Install GTK headers
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev clang
+
+      # tool/cpp_lint.sh needs linux/flutter/ephemeral/generated_config.cmake,
+      # which is generated and gitignored. Only `flutter build linux` writes it --
+      # `flutter pub get` does NOT. Without this the lint refuses to run.
+      - name: Generate the Linux config
+        run: flutter build linux --debug
+        working-directory: projects/agora
+
+      - name: Lint the Linux runner
+        run: ./tool/cpp_lint.sh
+        working-directory: projects/agora
+
+  rgx:
+    name: rgx — invariants + null control
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r projects/rgx/requirements.txt pytest
+
+      - name: Invariant suite (fast)
+        run: python -m pytest tests/ -q
+        working-directory: projects/rgx
+
+      # The central claim of this project is that under a zero-edge null the
+      # pipeline returns no edge. That is exactly what this job exercises, and it
+      # is the one suite that would otherwise never run in CI.
+      - name: Null control -- the pipeline must be able to find nothing
+        run: RGX_SLOW=1 python -m pytest tests/ -q
+        working-directory: projects/rgx
+
+  omnivest-backend:
+    name: omnivest — backend unit checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt pytest
+
+      # No server needed: the dataset is synthetic and deterministic, so this
+      # proves the forensics math and the watch-loop rules, not the HTTP layer.
+      # `working-directory` matters -- the tests import `app.*`, so `backend/` has
+      # to be the cwd or collection fails with ModuleNotFoundError.
+      - name: Unit checks
+        run: python -m pytest app/tests -q
+        working-directory: backend
+
+  omnivest-frontend:
+    name: omnivest — frontend analyze + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+        working-directory: frontend
+
+      - name: Analyze
+        run: flutter analyze
+        working-directory: frontend
+
+      # The wire tests assert the frontend sends the keys the backend actually
+      # accepts. That pair has drifted silently before, so it is gated.
+      - name: Test
+        run: flutter test
+        working-directory: frontend
