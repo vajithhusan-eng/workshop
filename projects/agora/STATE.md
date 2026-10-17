@@ -1,8 +1,8 @@
 # Agora — STATE
 
 **Derived file.** Regenerate by verifying, not by trusting commit messages or this file.
-**Verified:** 2026-10-17 · `HEAD 8e823e5` · Flutter 3.47.0 / Dart 3.13.0 ·
-`flutter test` 290 passed / 1 skipped; `dart analyze` and `flutter analyze` both
+**Verified:** 2026-10-17 · `HEAD 5df8f0b` · Flutter 3.47.0 / Dart 3.13.0 ·
+`flutter test` 296 passed / 1 skipped; `dart analyze` and `flutter analyze` both
 **`No issues found!` — 0 errors, 0 warnings, 0 info, exit 0.** Before this sweep a bare
 `dart analyze` on the package reported **20 errors + 197 info**; every error, and all 22
 of the tool/ infos, were in the ignored probe scratch. `tool/cpp_lint.sh` **PASS**
@@ -32,11 +32,23 @@ including one genuine bug: `tool/sandbox_smoke.dart` compared a `String?` to a `
 so its Verbatim hash check was vacuously true and asserted nothing; it now asserts
 `contentHash == contentHash(rawText)`.
 
+**Publish readiness (2026-10-17).** Three defects a clone would have hit are fixed.
+(1) `.gitignore` no longer carries `*.g.dart`, so `lib/data/database.g.dart` (8149
+lines) is tracked — a simulated clone without it reported **297 analyzer issues**, and
+the scratch clone now analyzes clean and passes the full suite. (2) The Sandbox Lab
+fixture no longer hard-codes a machine path: `tool/sandbox/adapter_sandbox.json` ships
+`file://./tool/sandbox/mock_ai_site.html` and `AdapterConfig.fromJson` expands a
+relative `file://` URL against the working directory at parse time (new
+`test/adapter_config_test.dart` covers it). (3) `flutter_markdown 0.7.7+1` was
+discontinued; migrated to `flutter_markdown_plus ^1.0.12` and took a full
+`flutter pub upgrade` (29 packages), which cleared the *"1 package is discontinued"*
+warning. `flutter test` is now **296 passed / 1 skipped** (the new test file adds 6).
+
 ## How to verify this file
 
 ```bash
 cd projects/agora
-flutter test          # 290 passed, 1 skipped, 0 failed
+flutter test          # 296 passed, 1 skipped, 0 failed
 dart analyze          # No issues found! — 0 errors, 0 warnings, 0 info
 tool/cpp_lint.sh      # 5 tracked C++ files, 0 errors, 0 warnings (GTK 3.24.52)
 git log --oneline -1
@@ -54,7 +66,7 @@ dart run tool/focus_probe.dart     # anti-throttling + TabPool against real Chro
 
 | Check | Result |
 |---|---|
-| `flutter test` | **290 passed · 1 skipped · 0 failed** |
+| `flutter test` | **296 passed · 1 skipped · 0 failed** |
 | `dart analyze` / `flutter analyze` | **`No issues found!` — 0 errors · 0 warnings · 0 info · exit 0.** Before this sweep: 20 errors + 197 info, every error in the ignored `tool/` scratch, which is now excluded from analysis by the same globs as `.gitignore`. The 24 real findings that remained (print statements, a field-vs-getter/setter pair, a renamed constant and test helper, two unclosed `StreamController`s, two `exists()` calls, one vacuous type-equality assertion) were all fixed by hand. |
 | Test inventory | 17 files — inc. `conversation_list_test.dart`, `conversation_state_test.dart`, `convergence_graph_test.dart`, `slash_commands_test.dart`, `chrome_mode_test.dart` |
 | `dart run tool/sandbox_smoke.dart` | **42 passed · 0 failed** against real Chrome 154 |

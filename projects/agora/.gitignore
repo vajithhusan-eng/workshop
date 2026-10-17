@@ -28,9 +28,14 @@ migrate_working_dir/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 
-# build_runner generated code. Regenerate with:
+# build_runner generated code.
+#
+# lib/data/database.g.dart IS tracked, deliberately. It is generated, but a
+# fresh clone must run `flutter test` without a codegen step, and CI verifies
+# the tracked file is up to date. Regenerate after any schema change with:
 #   dart run build_runner build --delete-conflicting-outputs
-*.g.dart
+#
+# Other generators stay ignored; add them above if that ever changes.
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/

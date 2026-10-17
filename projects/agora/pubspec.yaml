@@ -35,7 +35,7 @@ dependencies:
   http: ^1.2.1
 
   # --- UI ---
-  flutter_markdown: ^0.7.3
+  flutter_markdown_plus: ^1.0.12
   file_selector: ^1.0.3
 
 dev_dependencies:

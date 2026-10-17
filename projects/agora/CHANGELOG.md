@@ -2,6 +2,35 @@
 
 All changes to Agora, newest first. Entries quote the commit that carried them.
 
+## 2026-10-17 — publish readiness: a clone that builds, and a current dependency set
+
+Preparing the project to stand on its own surfaced three defects a fresh clone would
+have hit. All three are fixed and verified.
+
+- **A fresh clone did not build.** `.gitignore` carried `*.g.dart`, so
+  `lib/data/database.g.dart` was never committed. Proven by simulating a clone
+  (`rsync` the package to a scratch directory, delete every generated file):
+  `flutter analyze` then reported **297 issues**. `lib/data/database.g.dart`
+  (8149 lines) is now tracked and the blanket ignore is gone. It is committed **on
+  purpose** so a clone builds and tests with no codegen step; regenerate it only after
+  a schema change with `dart run build_runner build --delete-conflicting-outputs`.
+  Verified: the scratch clone now analyzes clean and its full suite passes.
+- **A machine-specific path was committed.** `tool/sandbox/adapter_sandbox.json`
+  hard-coded `file:///home/<user>/Documents/WORKSHOP/projects/agora/tool/sandbox/…`.
+  It now ships the relative `file://./tool/sandbox/mock_ai_site.html`, and
+  `AdapterConfig.fromJson` expands a relative `file://` URL against the working
+  directory at parse time — `http`, `about:` and absolute `file:///` URLs are passed
+  through untouched. The new `test/adapter_config_test.dart` covers the expansion, the
+  parent-relative case, the pass-through cases and the shipped fixture. No tracked file
+  in the package contains a machine path any more.
+- **A dependency was discontinued.** `flutter pub upgrade` reported *"1 package is
+  discontinued"*; it was `flutter_markdown 0.7.7+1`, replaced upstream by
+  `flutter_markdown_plus`. Migrated both call sites (`decision_record_screen.dart`,
+  `transcript_view.dart`) — it is a drop-in fork, so no widget code changed — and took
+  the full upgrade (29 packages). The warning is gone.
+- **After the upgrade:** `flutter analyze` **0 issues**; `flutter test` **296 passed /
+  1 skipped** (up from 290, the new `adapter_config_test.dart` adds 6).
+
 ## 2026-10-17 — AppImage: a FUSE-free artifact and a real launch proof
 
 The reported failure was `Cannot mount AppImage, please check your FUSE setup.` It was

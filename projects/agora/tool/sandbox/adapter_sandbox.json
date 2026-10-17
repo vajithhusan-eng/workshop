@@ -2,7 +2,7 @@
   "kind": "sandbox",
   "version": "1.0.0",
   "displayName": "MockAI (Sandbox Lab)",
-  "homeUrl": "file:///home/vajith-husan/Documents/WORKSHOP/projects/agora/tool/sandbox/mock_ai_site.html",
+  "homeUrl": "file://./tool/sandbox/mock_ai_site.html",
   "color": "#19c37d",
   "composer": {
     "css": [

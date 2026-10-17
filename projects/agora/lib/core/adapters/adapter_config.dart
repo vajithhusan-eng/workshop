@@ -279,7 +279,7 @@ class AdapterConfig {
   factory AdapterConfig.fromJson(Map<String, dynamic> json) {
     return AdapterConfig(
       kind: _reqString(json, 'kind'),
-      homeUrl: _reqString(json, 'homeUrl'),
+      homeUrl: _expandHomeUrl(_reqString(json, 'homeUrl')),
       version: _optString(json, 'version', '1.0.0'),
       displayName: _optString(json, 'displayName', _reqString(json, 'kind')),
       color: _optString(json, 'color', '#888888'),
@@ -427,6 +427,29 @@ String _reqString(Map<String, dynamic> m, String key) {
     throw FormatException('$key is required');
   }
   return v.toString();
+}
+
+/// Expand a relative `file://` home URL into an absolute one.
+///
+/// The Sandbox Lab fixture ships a *relative* URL
+/// (`file://./tool/sandbox/mock_ai_site.html`) so that no machine's directory
+/// layout is baked into the repository. Chrome needs an absolute `file://` URL,
+/// so it is resolved here, at parse time, against the working directory — which
+/// is the package root for every caller (the test suite and the `tool/`
+/// harnesses). `http`/`https`/`about:` URLs and already-absolute `file:///…`
+/// URLs pass through untouched.
+///
+/// [AdapterConfig.encode] emits the expanded URL. That is deliberate: encoded
+/// output is written to the user's own config directory
+/// (`~/.config/agora/adapters/`), never back into the repository.
+String _expandHomeUrl(String raw) {
+  const prefix = 'file://';
+  if (!raw.startsWith(prefix)) return raw;
+  final rest = raw.substring(prefix.length);
+  // `file:///abs/path` (already absolute) and anything with an authority are
+  // left alone; only a relative path needs resolving.
+  if (!rest.startsWith('./') && !rest.startsWith('../')) return raw;
+  return Uri.base.resolve(rest).toString();
 }
 
 String _optString(Map<String, dynamic> m, String key, String fallback) {
