@@ -11,12 +11,19 @@ One session = one chat = one project.
 ## Authority
 
 - `PLAN.md` — **plan of record**, `Status: PLAN APPROVED`. Binding.
-- `PLAN-GROUPCHAT.md` — `Status: PROPOSED`, **untracked in git**. **Superseded.** Its
-  D1 round-robin was ratified on 2026-10-06 — but as `PLAN.md` **§18 Amendment R1**,
-  under the approved plan. Keep the file as the record of what was proposed; never
-  cite it as authority over `PLAN.md`.
-- `ARCHITECTURE-legacy.md` — historical Python backend. **Do not build against it.**
+- `docs/archive/PLAN-GROUPCHAT.md` — `Status: PROPOSED`. **Superseded, not authority.**
+  Its D1 round-robin was ratified on 2026-10-06 — but as `PLAN.md` **§18 Amendment
+  R1**, under the approved plan. Keep the file as the record of what was proposed;
+  never cite it over `PLAN.md`.
+- `docs/archive/ARCHITECTURE-legacy.md` — historical Python backend. **Do not build
+  against it.**
+- `docs/archive/VISION.md` — the user's original vision, verbatim. **Add-only; never
+  delete it.**
 - `STATE.md` — derived build status. Regenerate via the `project-orientation` skill.
+
+The three `docs/archive/` files are the non-standard documents. They moved out of the
+project root so a reader cannot mistake a superseded proposal for the plan of record.
+The only thing the root carries is the standard set.
 
 ## Locked decisions — violating these reverses work already done
 

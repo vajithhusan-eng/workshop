@@ -1,8 +1,10 @@
 # Agora — documentation
 
-The documentation set for Agora. Every document has one concern; the project's
-other top-level Markdown files are indexed here too, because they are part of the
-project's permanent record and must not be orphaned.
+The documentation set for Agora. Every document has one concern. The project root
+now carries only the documents `PROJECT-STANDARD.md` requires — `README.md`,
+`AGENTS.md`, `STATE.md`, `CHANGELOG.md` and `PLAN.md`. Everything else still in the
+permanent record lives in [`archive/`](archive/), indexed below so it cannot be
+orphaned.
 
 | Document | Concern | Authority |
 |---|---|---|
@@ -11,9 +13,9 @@ project's permanent record and must not be orphaned.
 | [`../STATE.md`](../STATE.md) | Derived build status — regenerated, never hand-written | derived |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | What changed, by commit, newest first | history |
 | [`../PLAN.md`](../PLAN.md) | **The plan of record** | **binding** — `Status: PLAN APPROVED` |
-| [`../PLAN-GROUPCHAT.md`](../PLAN-GROUPCHAT.md) | The group-chat proposal that became Amendment R1 | **superseded** — keep as record only |
-| [`../VISION.md`](../VISION.md) | The original vision, in the user's own words | historical — verbatim, add-only |
-| [`../ARCHITECTURE-legacy.md`](../ARCHITECTURE-legacy.md) | The deleted Python backend | **archived** — never build against it |
+| [`archive/PLAN-GROUPCHAT.md`](archive/PLAN-GROUPCHAT.md) | The group-chat proposal that became Amendment R1 | **superseded** — keep as record only |
+| [`archive/VISION.md`](archive/VISION.md) | The original vision, in the user's own words | historical — verbatim, add-only |
+| [`archive/ARCHITECTURE-legacy.md`](archive/ARCHITECTURE-legacy.md) | The deleted Python backend | **archived** — never build against it |
 
 ## Reading order
 

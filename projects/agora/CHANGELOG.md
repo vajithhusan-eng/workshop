@@ -2,6 +2,26 @@
 
 All changes to Agora, newest first. Entries quote the commit that carried them.
 
+## 2026-10-17 — the project root carries only the standard document set
+
+The root held eight Markdown files where the standard asks for five, and the two
+extra ones were not live: `ARCHITECTURE-legacy.md` describes the deleted Python
+backend, and `PLAN-GROUPCHAT.md` is a `Status: PROPOSED` proposal superseded by
+`PLAN.md` §18 Amendment R1. Sitting beside `PLAN.md` made a superseded proposal look
+like an alternative plan of record.
+
+- `ARCHITECTURE-legacy.md`, `PLAN-GROUPCHAT.md` and `VISION.md` moved to
+  **`docs/archive/`** and are indexed in `docs/README.md`. Prose still names them by
+  basename; only links and location statements carry the new path.
+- `AGENTS.md` claimed `PLAN-GROUPCHAT.md` was **untracked in git**. That was false —
+  `git ls-files --error-unmatch` resolves it — and the claim is now simply that it is
+  superseded.
+- `VISION.md` is now listed in the authority section. Being unreferenced is how it
+  got deleted once before.
+
+The root now carries `README.md`, `AGENTS.md`, `STATE.md`, `CHANGELOG.md` and
+`PLAN.md`, and nothing else.
+
 ## 2026-10-17 — publish readiness: a clone that builds, and a current dependency set
 
 Preparing the project to stand on its own surfaced three defects a fresh clone would

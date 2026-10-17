@@ -17,7 +17,6 @@ before touching anything.
 | `scripts/` | `devsup.py`, `new_project.py`, `verify_docs.py`, `verify_projects.py`, `verify_api.sh` | |
 | `templates/project/` | the canonical project skeleton | |
 | `PROJECT-STANDARD.md` | the document standard every project follows | |
-| `archive/`, `tools/` | empty | |
 | `skills` | symlink → `~/.config/opencode/skills-active` | |
 
 `package.json` declares workspaces `["backend", "frontend", "projects/*", "tools/*"]`,
@@ -59,8 +58,8 @@ command has actually been run.
 
 - **`projects/agora` is the active project.** Recent commits are all Agora work.
 - **Plan docs are the contract.** `agora/PLAN.md` is `Status: PLAN APPROVED`;
-  `agora/PLAN-GROUPCHAT.md` is `Status: PROPOSED` and superseded — its D1 was
-  ratified as `PLAN.md` §18 Amendment R1, so it is *not* authority. CleanTube's
+  `agora/docs/archive/PLAN-GROUPCHAT.md` is `Status: PROPOSED` and superseded — its
+  D1 was ratified as `PLAN.md` §18 Amendment R1, so it is *not* authority. CleanTube's
   `PLAN.md` is the sole design doc. Never invent a design that contradicts an
   APPROVED plan — record the divergence instead.
 - **Assume another agent is working here.** This repo has parallel agents as a
@@ -81,8 +80,12 @@ command has actually been run.
   enforces it. `STATE.md` holds the pin and the exact commands that produced its
   numbers; update the pin as the *last* edit of a work session, then commit it with
   the rest of the change.
-- **`projects/agora/ARCHITECTURE-legacy.md` is archived.** It documents the deleted
-  Python backend. Never build against it or resurrect its patterns.
+- **`projects/agora/docs/archive/ARCHITECTURE-legacy.md` is archived.** It documents
+  the deleted Python backend. Never build against it or resurrect its patterns.
+- **The repo root carries only what belongs at the root.** No scratch files,
+  screenshots or one-off scripts live there: a document belongs in the project it
+  describes, a script in `scripts/`. `.gitignore` ignores `/*.png`, so a stray
+  screenshot cannot come back unnoticed.
 - **`backend/` and `frontend/` are a different stack** — Python/FastAPI and Flutter,
   no CDP, no drift. Do not apply Agora's conventions to them, or vice versa.
 - **Never `git push`, force-push, or reset `--hard`** without explicit confirmation

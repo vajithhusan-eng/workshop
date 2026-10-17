@@ -62,8 +62,9 @@ projects/agora/tool/probe_fix.dart
 backend/omnivest_journal.json
 backend/*.log
 
-# Root-level scratch screenshots
-/omnivest-shell.png
+# Root-level scratch images. A screenshot belongs in the docs/ of the project it
+# shows; keeping the root clean is the point, so nothing lands here by accident.
+/*.png
 
 # ─── personal agent tooling (this machine, not the projects) ────
 # OpenCode config, MCP server wiring, agent definitions and the quota ledger are
