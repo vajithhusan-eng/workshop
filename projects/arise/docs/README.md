@@ -16,6 +16,8 @@ app that turns habits, routines, and self-discipline into a Solo Leveling–styl
 | [`UI-UX-HUD.md`](UI-UX-HUD.md) | Interface/HUD spec: palette, typography, glass panel, motion, components, screens, WCAG 2.2 AA, performance | **How it looks** |
 | [`3D-IMMERSIVE-UI.md`](3D-IMMERSIVE-UI.md) | 3D/spatial UI: Flutter rendering options, three capability tiers, depth system, hero 3D moments, motion, performance budget, vestibular safety | **How it feels** |
 | [`HABITS-ROUTINES-DEEP.md`](HABITS-ROUTINES-DEEP.md) | What a habit is, formation timelines, context/friction levers, keystone habits, chronotype, stacking, sleep anchors — each mapped to a feature | Reference |
+| [`GENRE-ATLAS.md`](GENRE-ATLAS.md) | MC/system archetypes across anime, manga and manhwa; the two-axis grammar; what each mechanic is for; the binding borrow/refuse ledger | Reference |
+| [`SOURCE-LIBRARY.md`](SOURCE-LIBRARY.md) | The canon — videos, podcasts, game-design and behaviour books, research papers — plus the operational definition of the "world-class bar" | Reference |
 | [`SYSTEM-RESEARCH.md`](SYSTEM-RESEARCH.md) | The Solo Leveling System's mechanics, quest taxonomy, stats, penalty zone, shop, titles — plus the IP boundary | Reference |
 | [`SYSTEM-GENRE-DEEP.md`](SYSTEM-GENRE-DEEP.md) | The wider "System" genre and its game-design lineage (XP curves, stat allocation, gacha, quest taxonomy) | Reference |
 | [`APP-LANDSCAPE.md`](APP-LANDSCAPE.md) | Competing apps: habit builders, quit/sobriety apps, blockers, gamified trackers (incl. ZFA) | Reference |

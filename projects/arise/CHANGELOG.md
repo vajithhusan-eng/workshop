@@ -3,6 +3,21 @@
 Append-only, newest first. One entry per change that altered behaviour or
 recorded a decision — not one per commit.
 
+## 2026-10-24 — Genre atlas + source library
+
+- Added [`docs/GENRE-ATLAS.md`](docs/GENRE-ATLAS.md) — the two-axis grammar of
+  system stories (premise trope × mechanic × progression axis × emotional engine);
+  a mechanic catalogue (status window, quests, penalties, ranks, stats, classes,
+  titles, bestiary, gacha); the archetype atlas across anime/manga/manhwa; the
+  non-System discipline protagonists (Rock Lee, Saitama, Ippo, Blue Lock,
+  Thorfinn, Mob, Frieren); and the **binding borrow/refuse ledger** cross-checked
+  against the 12 red lines.
+- Added [`docs/SOURCE-LIBRARY.md`](docs/SOURCE-LIBRARY.md) — the canon: anime
+  analysis channels, podcasts, game-design and behaviour books, and the research
+  papers (SDT, Deci/Koestner/Ryan 1999, PENS, Hamari 2014, Li/Hew/Du 2024,
+  Toda 2018 dark side, Bogost 2011). Ends with the **operational world-class bar**
+  and the two traps on the way there (the PBL fallacy and the content trap).
+
 ## 2026-10-24 — 3D interface + habits & routines knowledge base
 
 - **Name decided: ARISE** (was a working title). Recorded as a locked decision.
