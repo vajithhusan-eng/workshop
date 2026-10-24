@@ -243,8 +243,13 @@
     "gpt-5",
     "gpt-5-thinking",
     "gpt-5-mini",
+    "gpt-5-pro",
     "o3",
-    "o4-mini"
+    "o4-mini",
+    "gpt-4.1",
+    "gpt-4.1-mini",
+    "o3-pro",
+    "o4-pro"
   ],
   "notes": "Selectors are ordered best-first; only the first VISIBLE hit wins. If ChatGPT redesigns, drop a fixed copy of this file into ~/.config/agora/adapters/chatgpt.json - no app release needed. Use Calibration Studio (or `dart run tool/sandbox_smoke.dart` healer checks) to regenerate."
 }

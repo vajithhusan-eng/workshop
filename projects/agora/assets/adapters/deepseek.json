@@ -165,8 +165,11 @@
     "options": {}
   },
   "knownModels": [
+    "deepseek-reasoner",
     "deepseek-chat",
-    "deepseek-reasoner"
+    "deepseek-v3",
+    "deepseek-r1",
+    "deepseek-coder"
   ],
   "notes": "DeepSeek ships BUILD-HASHED classnames (.fbb737a4 = message row, .f9f12de = user row, .icon-hdstop = stop button). These change on every deploy, which is exactly why Agora keeps selectors in JSON: when they rot, Calibration Studio regenerates them and the healer proposes a verified replacement without an app release. The text fallbacks are the safety net."
 }
