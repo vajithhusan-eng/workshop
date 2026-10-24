@@ -110,7 +110,7 @@ motion, and **bundled** fonts (no runtime fetch — offline).
 
 ## Current state
 
-**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (14
+**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (15
 research + design docs) plus the standard project files (README, AGENTS, STATE,
 CHANGELOG, `.gitignore`). No Flutter project scaffolded yet. Next: M0 (scaffold),
 which now includes the 3D capability-tier probe and a `flutter_scene` spike.
