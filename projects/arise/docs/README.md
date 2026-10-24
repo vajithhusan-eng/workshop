@@ -16,6 +16,8 @@ app that turns habits, routines, and self-discipline into a Solo Leveling–styl
 | [`UI-UX-HUD.md`](UI-UX-HUD.md) | Interface/HUD spec: palette, typography, glass panel, motion, components, screens, WCAG 2.2 AA, performance | **How it looks** |
 | [`3D-IMMERSIVE-UI.md`](3D-IMMERSIVE-UI.md) | 3D/spatial UI: Flutter rendering options, three capability tiers, depth system, hero 3D moments, motion, performance budget, vestibular safety | **How it feels** |
 | [`HABITS-ROUTINES-DEEP.md`](HABITS-ROUTINES-DEEP.md) | What a habit is, formation timelines, context/friction levers, keystone habits, chronotype, stacking, sleep anchors — each mapped to a feature | Reference |
+| [`HABIT-CONTROL-AND-DETOX.md`](HABIT-CONTROL-AND-DETOX.md) | The "detox" verdict (dopamine fasting debunked, reduction beats abstinence), the self-control ladder, craving mechanics, lapse/relapse protocol, sleep & stress platform, BCTTv1 audit, honesty ledger | **How control works** |
+| [`HUMAN-BEHAVIOR.md`](HUMAN-BEHAVIOR.md) | The seven-layer model (biology → environment), COM-B, dual process, the needs underneath, emotion regulation, and what Arise refuses to exploit | **The model we design against** |
 | [`GENRE-ATLAS.md`](GENRE-ATLAS.md) | MC/system archetypes across anime, manga and manhwa; the two-axis grammar; what each mechanic is for; the binding borrow/refuse ledger | Reference |
 | [`SOURCE-LIBRARY.md`](SOURCE-LIBRARY.md) | The canon — videos, podcasts, game-design and behaviour books, research papers — plus the operational definition of the "world-class bar" | Reference |
 | [`SYSTEM-RESEARCH.md`](SYSTEM-RESEARCH.md) | The Solo Leveling System's mechanics, quest taxonomy, stats, penalty zone, shop, titles — plus the IP boundary | Reference |

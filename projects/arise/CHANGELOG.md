@@ -3,6 +3,35 @@
 Append-only, newest first. One entry per change that altered behaviour or
 recorded a decision — not one per commit.
 
+## 2026-10-24 — Habit control, "detox", and the human behaviour model
+
+- Added [`docs/HABIT-CONTROL-AND-DETOX.md`](docs/HABIT-CONTROL-AND-DETOX.md) —
+  the intervention science. **The detox verdict:** dopamine fasting is
+  unsupported (Harvard Health, Cleveland Clinic, The Scientist, Fei 2022,
+  Cureus 2024) — you cannot fast from a neurotransmitter, and what the practice
+  actually is, is CBT. **Digital detox:** reduction beats abstinence
+  (Brailovskaia 2023, N=619: 1 h/day reduction had stronger and more durable
+  effects at 4 months than 7-day abstinence). **The self-control ladder**
+  (Duckworth, Gendler & Gross 2016): five strategy families, earlier = more
+  effective — and the recorded self-critique that **v1 sits on the weakest rung**
+  (response modulation), with the fix being strategy tags, cue-removal work at
+  onboarding, and rung-1/2 actions before any tracker. Plus craving mechanics,
+  the lapse protocol (AVE, attribution retraining, self-compassion, no-penalty
+  logging), the sleep/stress platform with **stress→habit flagged as failed
+  replication**, the willpower-belief trap, the **BCTTv1 active-ingredient audit**
+  (three missing techniques: coping planning, reduce prompts/cues, instruction),
+  the adversarial environment (Lyngs 2019, 367 tools, 74% blocking), and an
+  explicit **what-Arise-will-not-claim** ledger.
+- Added [`docs/HUMAN-BEHAVIOR.md`](docs/HUMAN-BEHAVIOR.md) — the seven-layer
+  model (biology → reward learning → habit → motivation → identity → social →
+  environment), integrated through **COM-B**, with the dual-process account,
+  the needs table, **emotion regulation as the hidden variable**, the
+  intention–behaviour gap (~28%), a layer-by-layer **refusal ledger**, a
+  top-down diagnostic, and ten design rules.
+- Recorded the strategic consequence: Arise must be an
+  **opportunity-and-capability product with a motivation skin**, not the
+  reverse — and must never ship the word "detox" in UI copy.
+
 ## 2026-10-24 — Genre atlas + source library
 
 - Added [`docs/GENRE-ATLAS.md`](docs/GENRE-ATLAS.md) — the two-axis grammar of

@@ -2,7 +2,7 @@
 
 *ARISE — an offline, private, Android-first Flutter app that turns habits, routines, and self-discipline into a Solo Leveling–style **System**, rendered as a spatial 3D interface.*
 
-**Status:** Plan only · research + design complete (15 docs); no code yet — M0 scaffold not started.
+**Status:** Plan only · research + design complete (17 docs); no code yet — M0 scaffold not started.
 
 ## What this is
 

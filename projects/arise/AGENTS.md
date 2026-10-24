@@ -41,6 +41,8 @@ Two consequences that are structural, not cosmetic:
 | `docs/UI-UX-HUD.md` | **How it looks** — palette, components, motion, accessibility, performance |
 | `docs/3D-IMMERSIVE-UI.md` | **How it feels** — 3D tiers, depth system, hero 3D moments, motion, performance budget |
 | `docs/HABITS-ROUTINES-DEEP.md` | Habits vs routines, formation timelines, context/friction, chronotype, stacking — mapped to features |
+| `docs/HABIT-CONTROL-AND-DETOX.md` | **How control works** — the detox verdict, the self-control ladder, craving, lapse protocol, sleep/stress, BCTTv1 audit |
+| `docs/HUMAN-BEHAVIOR.md` | **The model we design against** — seven layers, COM-B, needs, emotion regulation, refusal ledger |
 | `docs/GENRE-ATLAS.md` | MC/system archetypes across anime, manga, manhwa; the borrow/refuse ledger |
 | `docs/SOURCE-LIBRARY.md` | The video/podcast/book/paper canon + the operational "world-class bar" |
 | `docs/BEHAVIOR-SCIENCE-DEEP.md` | The science spec; each mechanic cites its paper |
@@ -110,7 +112,7 @@ motion, and **bundled** fonts (no runtime fetch — offline).
 
 ## Current state
 
-**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (15
+**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (17
 research + design docs) plus the standard project files (README, AGENTS, STATE,
 CHANGELOG, `.gitignore`). No Flutter project scaffolded yet. Next: M0 (scaffold),
 which now includes the 3D capability-tier probe and a `flutter_scene` spike.
