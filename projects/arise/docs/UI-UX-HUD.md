@@ -1,11 +1,12 @@
-# Arise — Interface, HUD & UX Spec
+# ARISE — Interface, HUD & UX Spec
 
 > The System is the product's interface. This doc defines its art direction,
 > motion, components, screens, and the accessibility and performance rules that
 > keep a "cool dark HUD" from becoming an unreadable, janky one.
 >
-> Read with `docs/ARCHITECTURE.md` (how it is built) and `docs/FEATURE-SPEC.md`
-> (what each feature does).
+> Read with `docs/ARCHITECTURE.md` (how it is built), `docs/FEATURE-SPEC.md`
+> (what each feature does), and `docs/3D-IMMERSIVE-UI.md` (the spatial/3D layer
+> this flat spec sits on top of).
 
 ---
 

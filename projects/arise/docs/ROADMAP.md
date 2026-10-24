@@ -1,9 +1,14 @@
-# Arise — Roadmap
+# ARISE — Roadmap
 
 > **Status: DECIDED 2026-10-17.** We build **v1 properly**, not the whole v20 at
 > once. The v20 arc is the north star; each version ships *complete and offline*
 > before the next begins. The version numbers are a **discipline**, not a
 > backlog — which is the whole point of the product.
+>
+> **Ratified 2026-10-24:** the app is named **ARISE**, is **personal & private**
+> (single-user), and its interface is **spatial (3D)** in capability tiers. The
+> habits science lives in `docs/HABITS-ROUTINES-DEEP.md`; the 3D answer in
+> `docs/3D-IMMERSIVE-UI.md`.
 
 ---
 
@@ -64,7 +69,8 @@
 5. **System window** — local notification styled as a System panel, at the
    user's set time. The core UX moment.
 6. **Core UI** — status screen (name, level, rank, XP bar), quest list, quest
-   completion flow.
+   completion flow — built on the **spatial (3D) tier system**
+   (`docs/3D-IMMERSIVE-UI.md`).
 7. **Local storage** — offline, no account, no network. **On-device only.**
 8. **Daily log** — mark complete / miss; the measurement effect is the product.
 
@@ -86,7 +92,8 @@ v2–v20; architecture must not preclude them.)*
 ## Milestones (build order)
 
 1. **M0 — Scaffold**: Flutter project, package id, folder structure, lint/test
-   config. Verify: `flutter analyze` + a trivial passing test.
+   config, **3D capability-tier probe + `flutter_scene` spike**.
+   Verify: `flutter analyze` + a trivial passing test.
 2. **M1 — Domain**: quest/XP/level/rank models + pure logic, with unit tests for
    the XP curve, rank thresholds, and never-miss-twice. Verify: unit tests green.
 3. **M2 — Persistence**: on-device store behind a repository interface.
@@ -103,9 +110,15 @@ proceeds.)*
 
 ---
 
-## Open decisions
+## Decided (was open)
 
-- **Package id**: `com.arise.system` proposed, not confirmed.
-- **State management**: to be chosen at M0 (leaning Riverpod or Bloc).
-- **Storage**: to be chosen at M0 (leaning Isar or Drift; both offline).
-- **Working title**: "Arise" (final name TBD).
+- **Name**: ARISE (decided 2026-10-24).
+- **Package id**: `com.arise.system`.
+- **State management**: Riverpod.
+- **Storage**: Drift (SQLite).
+- **Routing**: go_router.
+- **Interface**: spatial (3D) in capability tiers — immersive → depth → flat.
+
+## Still open
+
+- **Trademark/branding clearance** for ARISE before store publication.

@@ -1,4 +1,4 @@
-# Arise — project instructions
+# ARISE — project instructions
 
 Android-first **Flutter** app that turns habit-building and discipline into a
 Solo Leveling–style **"System"**: daily quests, XP, levels, E→S ranks, and
@@ -6,6 +6,11 @@ System-styled notifications — for **habits, routines, and self-discipline**.
 
 **Offline-only by design.** No account, no server, no network. The discipline
 data never leaves the device. Tagline: *"The System belongs to you."*
+
+**Name: ARISE** — decided (2026-10-24), not a working title. **Personal &
+private**: a single-user app for one person, not a social or multi-tenant
+product. **Spatial (3D)**: the interface is depth-based and game-like — see
+`docs/3D-IMMERSIVE-UI.md`.
 
 ## Identity in one line
 
@@ -34,6 +39,8 @@ Two consequences that are structural, not cosmetic:
 | `docs/FEATURE-SPEC.md` | **What each feature does** — the behavioural contract per feature |
 | `docs/ARCHITECTURE.md` | **How it is built** — modules, data models, engines, storage/routing decisions |
 | `docs/UI-UX-HUD.md` | **How it looks** — palette, components, motion, accessibility, performance |
+| `docs/3D-IMMERSIVE-UI.md` | **How it feels** — 3D tiers, depth system, hero 3D moments, motion, performance budget |
+| `docs/HABITS-ROUTINES-DEEP.md` | Habits vs routines, formation timelines, context/friction, chronotype, stacking — mapped to features |
 | `docs/BEHAVIOR-SCIENCE-DEEP.md` | The science spec; each mechanic cites its paper |
 | `docs/PSYCHOLOGY.md` | The field map + **12 red lines** |
 | `docs/GAMIFICATION-ETHICS.md` | Persuasion-vs-manipulation line; our operational rules |
@@ -58,6 +65,14 @@ Two consequences that are structural, not cosmetic:
    protectable; names, titles, and trade dress are. No "Solo Leveling" terms.
 6. **v1 architecture must not preclude v2–v20** (stats, jobs, HP, shop, titles,
    prestige).
+7. **The name is ARISE** (decided 2026-10-24). Not a working title. Package id
+   `com.arise.system`.
+8. **Personal & private, single-user.** No accounts, no multi-tenant, no social
+   layer, no sharing surface beyond a user-initiated export file.
+9. **Spatial (3D) interface.** Depth is a first-class part of the product,
+   delivered in capability tiers (immersive → depth → flat) so it stays flawless
+   on low-end Android. No 3D-only feature; never janky. See
+   `docs/3D-IMMERSIVE-UI.md`.
 
 ## Scope
 
@@ -83,7 +98,8 @@ prestige/Awakening. *(These are v2–v20 — see `docs/ROADMAP.md`.)*
 
 ## Open decisions
 
-- **Working title**: "Arise" — final name TBD (trademark check before branding).
+- **Trademark/branding clearance** for the name ARISE before store publication —
+  the name itself is decided; only the clearance is open.
 
 The v1 technical stack is **decided** (recorded in `docs/ARCHITECTURE.md` §11):
 package id `com.arise.system`, **Riverpod** state management, **Drift** (SQLite)
@@ -92,7 +108,8 @@ motion, and **bundled** fonts (no runtime fetch — offline).
 
 ## Current state
 
-**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (10
+**Planning + research only. Zero code.** `projects/arise/` holds `docs/` (12
 research + design docs) plus the standard project files (README, AGENTS, STATE,
-CHANGELOG, `.gitignore`). No Flutter project scaffolded yet. Next: M0 (scaffold).
+CHANGELOG, `.gitignore`). No Flutter project scaffolded yet. Next: M0 (scaffold),
+which now includes the 3D capability-tier probe and a `flutter_scene` spike.
 See `docs/ROADMAP.md` milestones and `STATE.md`.

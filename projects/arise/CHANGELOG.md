@@ -3,6 +3,19 @@
 Append-only, newest first. One entry per change that altered behaviour or
 recorded a decision — not one per commit.
 
+## 2026-10-24 — 3D interface + habits & routines knowledge base
+
+- **Name decided: ARISE** (was a working title). Recorded as a locked decision.
+- **Personal & private, single-user** recorded as a locked decision.
+- Added [`docs/3D-IMMERSIVE-UI.md`](docs/3D-IMMERSIVE-UI.md) — 3D/spatial UI
+  spec: `flutter_scene`/Flutter GPU/Impeller vs 2.5D, three capability tiers
+  (immersive → depth → flat), depth system, one-hero-3D-per-screen rule, motion,
+  performance budget, vestibular safety, bundled-asset offline rule.
+- Added [`docs/HABITS-ROUTINES-DEEP.md`](docs/HABITS-ROUTINES-DEEP.md) — habits
+  vs routines, formation timelines (Lally; morning ~106 d vs evening ~154 d), Wood
+  2024 context/friction levers, keystone habits, chronotype/synchrony, habit
+  stacking, anchor sleep — each mapped to a concrete Arise feature.
+
 ## 2026-10-17 — UI/UX, architecture, and feature research
 
 - Added [`docs/UI-UX-HUD.md`](docs/UI-UX-HUD.md) — the interface/HUD design

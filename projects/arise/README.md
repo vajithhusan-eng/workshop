@@ -1,8 +1,8 @@
 # Arise
 
-*An offline, Android-first Flutter app that turns habits, routines, and self-discipline into a Solo Leveling–style **System**.*
+*ARISE — an offline, private, Android-first Flutter app that turns habits, routines, and self-discipline into a Solo Leveling–style **System**, rendered as a spatial 3D interface.*
 
-**Status:** Plan only · research + design complete (10 docs); no code yet — M0 scaffold not started.
+**Status:** Plan only · research + design complete (12 docs); no code yet — M0 scaffold not started.
 
 ## What this is
 
@@ -14,6 +14,11 @@ change underneath and the System aesthetic on top.
 **Offline-only by design.** No account, no server, no network, no ads, no
 analytics phone-home. The discipline data never leaves the device.
 *"The System belongs to you."*
+
+**Personal and private:** a single-user app for one person — no social layer, no
+multi-tenant, no cloud. **Spatial:** the interface is 3D/depth-based, delivered
+in capability tiers so it stays fluid on low-end Android (see
+[`docs/3D-IMMERSIVE-UI.md`](docs/3D-IMMERSIVE-UI.md)).
 
 The v1 release ("The Awakening") is deliberately small — quests, XP, levels,
 ranks, streaks, System notifications, local storage. Later versions add stats,
