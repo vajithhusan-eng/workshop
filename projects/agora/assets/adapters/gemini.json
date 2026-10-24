@@ -175,10 +175,11 @@
     }
   },
   "knownModels": [
-    "gemini-2.5-pro",
     "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-thinking"
+    "gemini-1.5-pro",
+    "gemini-2.5-pro",
+    "gemini-2.5-flash-thinking",
+    "gemini-2.0-flash"
   ],
   "notes": "Gemini renders into <model-response>; its composer is a Quill editor (rich-textarea .ql-editor) inside a shadow host on some builds, which the page kernel pierces. Models move often - edit knownModels or add options freely."
 }
