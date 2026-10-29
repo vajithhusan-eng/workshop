@@ -126,6 +126,7 @@ git add projects/<slug> && git commit
 | `projects/agora/` | Flutter desktop (AppImage) | ✅ | ✅ | ✅ | ✅ | yes |
 | `projects/rgx/` | Python research harness | ✅ | ✅ | ✅ | ✅ | yes |
 | `projects/cleantube/` | Flutter Android (plan only) | ✅ | ✅ | ✅ | ✅ | plan only |
+| `projects/eightfold/` | Android PS3 emulator (plan only) | ✅ | ✅ | ✅ | ✅ | plan only |
 | `projects/arise/` | in flight by another agent | — | — | — | ✅ | exempt |
 | `backend/` | Python + FastAPI (OMNIVEST) | ✅ | ✅ | ✅ | ✅ | yes |
 | `frontend/` | Flutter web (OMNIVEST) | ✅ | ✅ | ✅ | ✅ | yes |
